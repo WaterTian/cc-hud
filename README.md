@@ -1,11 +1,9 @@
-# Claude Code HUD &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CC-HUD
+# CC-HUD &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Claude Code HUD
 A compact, single-line statusline for [Claude Code](https://claude.ai/claude-code).
 
 一个精简的 Claude Code 单行状态栏插件。
 
-```
-[Opus 4.6] ████▌░░░░░ 45% │ ◐ explore [haiku] │ 5h: 25% 7d: 10%
-```
+![cc-hud preview](cc-hud-preview.png)
 
 > **Model** &rarr; **Context** &rarr; **Agents** &rarr; **Rate Limits** &mdash; everything you need, nothing you don't.
 
