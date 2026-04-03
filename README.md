@@ -1,5 +1,4 @@
-# CC-HUD
-## Claude Code HUD
+# Claude Code HUD &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; CC-HUD
 A compact, single-line statusline for [Claude Code](https://claude.ai/claude-code).
 
 一个精简的 Claude Code 单行状态栏插件。
@@ -8,33 +7,36 @@ A compact, single-line statusline for [Claude Code](https://claude.ai/claude-cod
 [Opus 4.6] ████▌░░░░░ 45% │ ◐ explore [haiku] │ 5h: 25% 7d: 10%
 ```
 
-| What You See | Source |
-|---|---|
-| Model name | `[Opus 4.6]` from stdin |
-| Context health | 1/8-precision bar, [Catppuccin Mocha](https://github.com/catppuccin/catppuccin) 4-stop gradient |
-| Active agents | Parsed from transcript JSONL (tail 64KB) |
-| Rate limits | 5h / 7d usage (Pro/Max) |
+> **Model** &rarr; **Context** &rarr; **Agents** &rarr; **Rate Limits** &mdash; everything you need, nothing you don't.
 
-## Install
+---
 
-Inside Claude Code, run:
+### Features
+
+| | Feature | Detail |
+|---|---|---|
+| **`█▌`** | Context bar | 1/8-precision Unicode blocks, 80-level granularity |
+| **`🎨`** | Color | [Catppuccin Mocha](https://github.com/catppuccin/catppuccin) 4-stop gradient |
+| **`◐`** | Agents | Running subagents with type & model |
+| **`%`** | Rate limits | 5h / 7d usage (Pro/Max) |
+| **`0`** | Dependencies | Zero. Node.js built-in modules only |
+
+---
+
+### Install
+
+Inside Claude Code:
 
 ```
 /plugin marketplace add WaterTian/cc-hud
-```
-
-```
 /plugin install cc-hud
-```
-
-```
 /cc-hud:setup
 ```
 
 Restart Claude Code. Done.
 
 <details>
-<summary><strong>Manual install</strong></summary>
+<summary>Manual install</summary>
 
 ```bash
 git clone https://github.com/WaterTian/cc-hud.git
@@ -53,29 +55,34 @@ Add to `~/.claude/settings.json`:
 }
 ```
 
-Restart Claude Code.
-
 </details>
 
-## How It Works
+---
+
+### How It Works
 
 ```
-Claude Code → stdin JSON → cc-hud → stdout → status bar
-           ↘ transcript JSONL (tail 64KB → active agents)
+Claude Code ─── stdin JSON ──→ cc-hud ──→ stdout ──→ status bar
+             ↘ transcript JSONL (tail 64KB → active agents)
 ```
 
-- Zero dependencies — TypeScript + Node.js built-in modules only
-- Stateless — each invocation is a fresh process, no memory leaks
-- 2s hard timeout — never blocks Claude Code
-- ~60ms execution — well within 300ms debounce window
+|  | |
+|---|---|
+| Stateless | Each call is a fresh process — zero memory leaks |
+| Fast | ~60ms exec, within 300ms debounce |
+| Safe | 2s hard timeout, all IO try-catch |
 
-## Development
+---
+
+### Development
 
 ```bash
 npm run build      # compile
-npm test           # node --test (13 tests)
+npm test           # 13 tests
 ```
 
-## License
+---
+
+### License
 
 MIT
