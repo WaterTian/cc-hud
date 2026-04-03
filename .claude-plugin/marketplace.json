@@ -1,0 +1,19 @@
+{
+  "name": "cc-hud",
+  "owner": {
+    "name": "Water"
+  },
+  "metadata": {
+    "description": "Compact statusline HUD for Claude Code",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "cc-hud",
+      "source": "./",
+      "description": "Compact single-line statusline showing context usage, active agents, and rate limits.",
+      "category": "monitoring",
+      "tags": ["hud", "statusline", "monitoring", "context", "agents"]
+    }
+  ]
+}
