@@ -1,7 +1,7 @@
 # Claude Code
+.claude/
 .worktrees/
 .agents/
-.claude/skills/
 
 # OS
 .DS_Store
