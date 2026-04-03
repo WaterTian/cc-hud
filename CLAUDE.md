@@ -4,8 +4,6 @@
 
 cc-hud — 精简的 Claude Code 单行状态栏插件，显示模型名称、上下文用量、活跃子代理、速率限制。
 
-参考项目：https://github.com/jarrodwatts/claude-hud/
-
 ## 技术栈
 
 | 层级 | 技术 |
