@@ -3,15 +3,15 @@ import { parseAgents } from './transcript.js';
 import { render } from './render.js';
 import type { RenderData } from './types.js';
 
+// Hard timeout — never block Claude Code
+const TIMEOUT_MS = 2000;
+setTimeout(() => process.exit(0), TIMEOUT_MS).unref();
+
 function shortModelName(displayName?: string, id?: string): string {
-  // "Opus 4.6 (1M context)" → "Opus 4.6"
-  // "Sonnet 4.6" → "Sonnet 4.6"
-  // "Claude 3.5 Haiku" → "Haiku 3.5"
   if (displayName) {
     const stripped = displayName.replace(/\s*\(.*?\)\s*/g, '').trim();
     if (stripped) return stripped;
   }
-  // fallback: extract from model id like "claude-opus-4-6"
   if (id) {
     const m = id.match(/claude-(\w+)-(\d+)-(\d+)/);
     if (m) return `${m[1][0].toUpperCase()}${m[1].slice(1)} ${m[2]}.${m[3]}`;
@@ -21,9 +21,12 @@ function shortModelName(displayName?: string, id?: string): string {
 
 async function main(): Promise<void> {
   const data = await readStdin();
-  const agents = await parseAgents(data.transcript_path);
+
+  // Parse transcript in parallel with render prep — no dependency
+  const agentsPromise = parseAgents(data.transcript_path);
 
   const contextPercent = data.context_window?.used_percentage ?? 0;
+  const agents = await agentsPromise;
 
   const renderData: RenderData = {
     model: shortModelName(data.model?.display_name, data.model?.id),
