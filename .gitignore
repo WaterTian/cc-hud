@@ -24,5 +24,8 @@ build/
 .env
 .env.local
 
+# Docs (generated specs)
+docs/
+
 # Tools & Temp
 screenshots/
