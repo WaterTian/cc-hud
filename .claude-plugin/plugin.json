@@ -8,7 +8,8 @@
   "commands": [
     "./commands/setup.md"
   ],
-  "homepage": "https://github.com/anthropics/claude-code",
+  "homepage": "https://github.com/WaterTian/cc-hud",
+  "repository": "https://github.com/WaterTian/cc-hud",
   "license": "MIT",
   "keywords": ["hud", "statusline", "context", "agents", "monitoring"]
 }

@@ -1,5 +1,5 @@
-# CC-HUD  Claude HUD
-
+# CC-HUD
+## Claude Code HUD
 A compact, single-line statusline for [Claude Code](https://claude.ai/claude-code).
 
 一个精简的 Claude Code 单行状态栏插件。
@@ -17,7 +17,24 @@ A compact, single-line statusline for [Claude Code](https://claude.ai/claude-cod
 
 ## Install
 
-Node.js ≥ 18 required.
+Inside Claude Code, run:
+
+```
+/plugin marketplace add WaterTian/cc-hud
+```
+
+```
+/plugin install cc-hud
+```
+
+```
+/cc-hud:setup
+```
+
+Restart Claude Code. Done.
+
+<details>
+<summary><strong>Manual install</strong></summary>
 
 ```bash
 git clone https://github.com/WaterTian/cc-hud.git
@@ -37,6 +54,8 @@ Add to `~/.claude/settings.json`:
 ```
 
 Restart Claude Code.
+
+</details>
 
 ## How It Works
 
