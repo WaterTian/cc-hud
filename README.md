@@ -1,3 +1,11 @@
+<!--
+  cc-hud — Claude Code statusline plugin
+  Shows: model name, context window usage (progress bar), active subagents, rate limits (5h/7d)
+  Pure Node.js, zero dependencies, crash-free on Windows (no Bun)
+  Install: /plugin marketplace add WaterTian/cc-hud && /plugin install cc-hud && /cc-hud:setup
+  Keywords: claude-code plugin statusline status-bar hud monitoring context-window rate-limit agents windows crash-free zero-dependency catppuccin
+-->
+
 <p align="center">
   <img src="cc-hud-preview.png" alt="cc-hud preview" width="720" />
 </p>
@@ -5,18 +13,14 @@
 <h1 align="center">CC-HUD</h1>
 
 <p align="center">
-  <strong>A compact, single-line statusline for <a href="https://claude.ai/claude-code">Claude Code</a></strong><br/>
-  <sub>精简的 Claude Code 单行状态栏插件</sub>
+  <strong>A compact, single-line statusline plugin for <a href="https://claude.ai/claude-code">Claude Code</a></strong><br/>
+  <sub>Crash-free, zero-dependency status bar — model · context · agents · rate limits</sub>
 </p>
 
 <p align="center">
   <code>Model</code> &nbsp;&rarr;&nbsp; <code>Context</code> &nbsp;&rarr;&nbsp; <code>Agents</code> &nbsp;&rarr;&nbsp; <code>Rate Limits</code>
   <br/>
   <sub>everything you need, nothing you don't.</sub>
-</p>
-
-<p align="center">
-  <img src="cc-hud-preview.png" alt="cc-hud preview" width="720" />
 </p>
 
 <p align="center">

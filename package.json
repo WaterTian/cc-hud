@@ -19,6 +19,21 @@
     "commands/",
     ".claude-plugin/"
   ],
+  "keywords": [
+    "claude-code",
+    "claude-code-plugin",
+    "statusline",
+    "status-bar",
+    "hud",
+    "monitoring",
+    "context-window",
+    "rate-limit",
+    "agents",
+    "windows",
+    "crash-free",
+    "zero-dependency",
+    "catppuccin"
+  ],
   "devDependencies": {
     "@types/node": "^22.0.0",
     "typescript": "^5.0.0"
