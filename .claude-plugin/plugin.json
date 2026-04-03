@@ -1,0 +1,14 @@
+{
+  "name": "cc-hud",
+  "description": "Compact statusline HUD for Claude Code — context, agents, rate limits",
+  "version": "0.1.0",
+  "author": {
+    "name": "Water"
+  },
+  "commands": [
+    "./commands/setup.md"
+  ],
+  "homepage": "https://github.com/anthropics/claude-code",
+  "license": "MIT",
+  "keywords": ["hud", "statusline", "context", "agents", "monitoring"]
+}

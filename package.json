@@ -1,0 +1,26 @@
+{
+  "name": "cc-hud",
+  "version": "0.1.0",
+  "description": "Compact statusline HUD for Claude Code — context, agents, rate limits",
+  "type": "module",
+  "main": "dist/index.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "npm run build && node --test",
+    "test:stdin": "npm run build && echo {\"model\":{\"display_name\":\"Opus\"},\"context_window\":{\"used_percentage\":45,\"context_window_size\":200000},\"rate_limits\":{\"five_hour\":{\"used_percentage\":25},\"seven_day\":{\"used_percentage\":10}}} | node dist/index.js"
+  },
+  "files": [
+    "dist/",
+    "src/",
+    "commands/",
+    ".claude-plugin/"
+  ],
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.0.0"
+  }
+}

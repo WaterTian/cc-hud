@@ -1,0 +1,28 @@
+# Claude Code
+.worktrees/
+.agents/
+.claude/skills/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dependencies
+node_modules/
+
+# Build
+build/
+
+# IDE
+.vscode/
+.idea/
+.codebuddy/
+.kiro/
+.trae/
+
+# Env
+.env
+.env.local
+
+# Tools & Temp
+screenshots/

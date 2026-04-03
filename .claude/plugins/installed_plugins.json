@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "plugins": {
+    "superpowers@claude-plugins-official": [
+      {
+        "scope": "project",
+        "installPath": "C:\\Users\\EDY\\.claude\\plugins\\cache\\claude-plugins-official\\superpowers\\5.0.6",
+        "version": "5.0.6",
+        "installedAt": "2026-03-24T04:30:00.000Z",
+        "lastUpdated": "2026-03-30T00:00:00.000Z",
+        "gitCommitSha": "8ea39819eed74fe2a0338e71789f06b30e953041"
+      }
+    ]
+  }
+}
