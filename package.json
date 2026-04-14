@@ -1,6 +1,6 @@
 {
   "name": "cc-hud",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Compact statusline HUD for Claude Code — context, agents, rate limits",
   "type": "module",
   "main": "dist/index.js",
