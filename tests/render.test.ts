@@ -40,8 +40,7 @@ describe('render', () => {
 
   it('shows rate limits when provided', () => {
     const out = strip(render(makeData({ fiveHourPercent: 25, sevenDayPercent: 10 })));
-    assert.match(out, /5h:.*25%/);
-    assert.match(out, /7d:.*10%/);
+    assert.match(out, /5h:.*25%.*│.*7d:.*10%/);
   });
 
   it('omits rate limits when null', () => {
@@ -106,7 +105,7 @@ describe('render', () => {
       fiveHourPercent: 3,
       fiveHourResetsAt: resetsAt,
     })));
-    assert.match(out, /5h:3%\(1\.9h\)/);
+    assert.match(out, /5h:3% \(1\.9h\)/);
   });
 
   it('shows countdown in days for 7d window', () => {
@@ -115,7 +114,7 @@ describe('render', () => {
       sevenDayPercent: 90,
       sevenDayResetsAt: resetsAt,
     })));
-    assert.match(out, /7d:90%\(2\.3d\)/);
+    assert.match(out, /7d:90% \(2\.3d\)/);
   });
 
   it('shows countdown in minutes when less than 1 hour', () => {
@@ -124,7 +123,7 @@ describe('render', () => {
       fiveHourPercent: 80,
       fiveHourResetsAt: resetsAt,
     })));
-    assert.match(out, /5h:80%\(47m\)/);
+    assert.match(out, /5h:80% \(47m\)/);
   });
 
   it('omits countdown when resets_at is null', () => {

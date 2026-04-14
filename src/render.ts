@@ -74,7 +74,7 @@ function rateSegment(label: string, percent: number | null, resetsAt: number | n
   const clamped = Math.round(Math.max(0, Math.min(100, percent)));
   const c = color(clamped);
   const cd = formatCountdown(resetsAt);
-  const suffix = cd ? `${OVERLAY}(${RESET}${cd.color}${cd.text}${RESET}${OVERLAY})${RESET}` : '';
+  const suffix = cd ? ` ${OVERLAY}(${RESET}${cd.color}${cd.text}${RESET}${OVERLAY})${RESET}` : '';
   return `${OVERLAY}${label}:${RESET}${c}${clamped}%${RESET}${suffix}`;
 }
 
@@ -101,7 +101,7 @@ export function render(data: RenderData): string {
   const r5 = rateSegment('5h', data.fiveHourPercent, data.fiveHourResetsAt);
   const r7 = rateSegment('7d', data.sevenDayPercent, data.sevenDayResetsAt);
   if (r5 && r7) {
-    segments.push(`${r5} ${r7}`);
+    segments.push(`${r5} ${OVERLAY}│${RESET} ${r7}`);
   } else if (r5) {
     segments.push(r5);
   } else if (r7) {
