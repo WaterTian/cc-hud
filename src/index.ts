@@ -28,14 +28,19 @@ async function main(): Promise<void> {
   const contextPercent = data.context_window?.used_percentage ?? 0;
   const agents = await agentsPromise;
 
+  const toMs = (ts: number | null | undefined): number | null => {
+    if (ts == null) return null;
+    return ts < 1e12 ? ts * 1000 : ts;
+  };
+
   const renderData: RenderData = {
     model: shortModelName(data.model?.display_name, data.model?.id),
     contextPercent: Math.round(contextPercent),
     agents,
     fiveHourPercent: data.rate_limits?.five_hour?.used_percentage ?? null,
     sevenDayPercent: data.rate_limits?.seven_day?.used_percentage ?? null,
-    fiveHourResetsAt: data.rate_limits?.five_hour?.resets_at ?? null,
-    sevenDayResetsAt: data.rate_limits?.seven_day?.resets_at ?? null,
+    fiveHourResetsAt: toMs(data.rate_limits?.five_hour?.resets_at),
+    sevenDayResetsAt: toMs(data.rate_limits?.seven_day?.resets_at),
   };
 
   console.log(render(renderData));
