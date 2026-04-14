@@ -62,10 +62,11 @@ function formatCountdown(resetsAt) {
     if (minutes < 60)
         return { text: `${Math.round(minutes)}m`, color: c };
     const hours = ms / 3_600_000;
+    const fmtNum = (n) => { const r = n.toFixed(1); return r.endsWith('.0') ? r.slice(0, -2) : r; };
     if (hours < 24)
-        return { text: `${hours.toFixed(1)}h`, color: c };
+        return { text: `${fmtNum(hours)}h`, color: c };
     const days = ms / 86_400_000;
-    return { text: `${days.toFixed(1)}d`, color: c };
+    return { text: `${fmtNum(days)}d`, color: c };
 }
 function rateSegment(label, percent, resetsAt) {
     if (percent == null)
