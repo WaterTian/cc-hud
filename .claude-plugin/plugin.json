@@ -1,7 +1,7 @@
 {
   "name": "cc-hud",
   "description": "Compact statusline HUD for Claude Code — context, agents, rate limits",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": {
     "name": "Water"
   },
