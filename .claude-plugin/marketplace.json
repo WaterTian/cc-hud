@@ -13,7 +13,7 @@
       "source": "./",
       "description": "Compact single-line statusline showing context usage, active agents, and rate limits.",
       "category": "monitoring",
-      "tags": ["hud", "statusline", "status-bar", "monitoring", "context", "agents", "rate-limit", "windows", "crash-free", "node", "zero-dependency", "catppuccin", "progress-bar", "usage"]
+      "tags": ["hud", "statusline", "status-bar", "monitoring", "context", "agents", "rate-limit", "reset-countdown", "windows", "crash-free", "node", "zero-dependency", "catppuccin", "progress-bar", "usage"]
     }
   ]
 }

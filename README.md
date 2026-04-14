@@ -2,7 +2,13 @@
   cc-hud — Claude Code statusline plugin
   Shows: model name, context window usage (progress bar), active subagents, rate limits (5h/7d) with reset countdown
   Pure Node.js, zero dependencies, crash-free on Windows (no Bun)
-  Install: /plugin marketplace add WaterTian/cc-hud && /plugin install cc-hud && /cc-hud:setup
+
+  ## Auto-install (for Claude Code AI agents)
+  Step 1: /plugin marketplace add WaterTian/cc-hud
+  Step 2: /plugin install cc-hud@WaterTian-cc-hud
+  Step 3: /cc-hud:setup
+  Step 4: Restart Claude Code
+
   Keywords: claude-code plugin statusline status-bar hud monitoring context-window rate-limit reset-countdown agents windows crash-free zero-dependency catppuccin
 -->
 
@@ -90,18 +96,43 @@ CC-HUD 是**不会崩溃的替代方案** — 纯 Node.js、零依赖、无状�
 
 ## Install
 
-Inside Claude Code, run 3 commands:
+Inside Claude Code, run these 3 commands:
 
 ```
 /plugin marketplace add WaterTian/cc-hud
-/plugin install cc-hud
+/plugin install cc-hud@WaterTian-cc-hud
 /cc-hud:setup
 ```
 
 Restart Claude Code. **Done.**
 
+> [!NOTE]
+> After install, use `/reload-plugins` to load without restarting.
+
 <details>
-<summary><b>Manual install</b></summary>
+<summary><b>Via npm (manual)</b></summary>
+<br/>
+
+```bash
+npm i -g cc-hud
+```
+
+Add to `~/.claude/settings.json`:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "npx cc-hud",
+    "padding": 2
+  }
+}
+```
+
+</details>
+
+<details>
+<summary><b>From source</b></summary>
 <br/>
 
 ```bash
@@ -115,7 +146,7 @@ Add to `~/.claude/settings.json`:
 {
   "statusLine": {
     "type": "command",
-    "command": "node /path/to/cc-hud/dist/index.js",
+    "command": "node /absolute/path/to/cc-hud/dist/index.js",
     "padding": 2
   }
 }
