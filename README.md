@@ -20,7 +20,7 @@
 
 <p align="center">
   <strong>A compact, single-line statusline plugin for <a href="https://claude.ai/claude-code">Claude Code</a></strong><br/>
-  <sub>Crash-free, zero-dependency status bar — model · context · agents · rate limits</sub>
+  <sub>Crash-free, zero-dependency status bar — model · context · agents · rate limits · reset countdown</sub>
 </p>
 
 <p align="center">
@@ -30,6 +30,10 @@
 </p>
 
 <p align="center">
+  <a href="https://www.npmjs.com/package/cc-hud"><img src="https://img.shields.io/npm/v/cc-hud?style=flat-square&color=cb3837" alt="npm version" /></a>
+  &nbsp;
+  <a href="https://www.npmjs.com/package/cc-hud"><img src="https://img.shields.io/npm/dm/cc-hud?style=flat-square&color=cb3837" alt="npm downloads" /></a>
+  &nbsp;
   <a href="#install"><img src="https://img.shields.io/badge/install-3_commands-blueviolet?style=flat-square" alt="install" /></a>
   &nbsp;
   <img src="https://img.shields.io/badge/dependencies-0-brightgreen?style=flat-square" alt="zero deps" />
@@ -85,7 +89,7 @@ CC-HUD 是**不会崩溃的替代方案** — 纯 Node.js、零依赖、无状�
 <table>
 <tr>
   <td align="center" width="20%"><h3>█▌</h3><b>Context Bar</b><br/><sub>1/8-precision blocks<br/>80-level granularity</sub></td>
-  <td align="center" width="20%"><h3>🎨</h3><b>Color</b><br/><sub><a href="https://github.com/catppuccin/catppuccin">Catppuccin Mocha</a><br/>4-stop gradient</sub></td>
+  <td align="center" width="20%"><h3>◧</h3><b>Color</b><br/><sub><a href="https://github.com/catppuccin/catppuccin">Catppuccin Mocha</a><br/>dual-tone gradient</sub></td>
   <td align="center" width="20%"><h3>◐</h3><b>Agents</b><br/><sub>Running subagents<br/>with type & model</sub></td>
   <td align="center" width="20%"><h3>%</h3><b>Rate Limits</b><br/><sub>5h / 7d usage<br/>+ reset countdown</sub></td>
   <td align="center" width="20%"><h3>0</h3><b>Dependencies</b><br/><sub>Zero. Node.js<br/>built-ins only</sub></td>
@@ -160,6 +164,7 @@ Add to `~/.claude/settings.json`:
 
 ```
 Claude Code ─── stdin JSON ──→ cc-hud ──→ stdout ──→ status bar
+             │  (model, context, rate_limits.resets_at)
              ↘ transcript JSONL (tail 64KB → active agents)
 ```
 
