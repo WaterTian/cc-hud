@@ -29,6 +29,8 @@ async function main() {
         agents,
         fiveHourPercent: data.rate_limits?.five_hour?.used_percentage ?? null,
         sevenDayPercent: data.rate_limits?.seven_day?.used_percentage ?? null,
+        fiveHourResetsAt: data.rate_limits?.five_hour?.resets_at ?? null,
+        sevenDayResetsAt: data.rate_limits?.seven_day?.resets_at ?? null,
     };
     console.log(render(renderData));
 }

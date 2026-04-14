@@ -10,6 +10,10 @@ const PEACH  = fg(216);  // #fab387 — warning
 const RED    = fg(211);  // #f38ba8 — critical
 const TEAL   = fg(115);  // #94e2d5 — agent accent
 const BLUE   = fg(111);  // #89b4fa — info accent
+const SAPPHIRE  = fg(117); // #74c7ec — countdown: plenty
+const LAVENDER  = fg(147); // #b4befe — countdown: moderate
+const FLAMINGO  = fg(224); // #f2cdcd — countdown: attention
+const MAROON    = fg(217); // #eba0ac — countdown: urgent
 const OVERLAY = fg(243); // #6c7086 — dim/separator
 const SURFACE = fg(238); // #313244 — bar track
 const TEXT   = fg(189);  // #cdd6f4 — primary text
@@ -44,11 +48,34 @@ function progressBar(percent: number): string {
   return `${bar} ${c}${clamped}%${RESET}`;
 }
 
-function rateSegment(label: string, percent: number | null): string | null {
+function countdownColor(ms: number): string {
+  const hours = ms / 3_600_000;
+  if (hours >= 24) return SAPPHIRE;
+  if (hours >= 3)  return LAVENDER;
+  if (hours >= 0.5) return FLAMINGO;
+  return MAROON;
+}
+
+function formatCountdown(resetsAt: number | null): { text: string; color: string } | null {
+  if (resetsAt == null) return null;
+  const ms = resetsAt - Date.now();
+  if (ms <= 0) return null;
+  const minutes = ms / 60_000;
+  const c = countdownColor(ms);
+  if (minutes < 60) return { text: `${Math.round(minutes)}m`, color: c };
+  const hours = ms / 3_600_000;
+  if (hours < 24) return { text: `${hours.toFixed(1)}h`, color: c };
+  const days = ms / 86_400_000;
+  return { text: `${days.toFixed(1)}d`, color: c };
+}
+
+function rateSegment(label: string, percent: number | null, resetsAt: number | null): string | null {
   if (percent == null) return null;
   const clamped = Math.round(Math.max(0, Math.min(100, percent)));
   const c = color(clamped);
-  return `${OVERLAY}${label}:${RESET} ${c}${clamped}%${RESET}`;
+  const cd = formatCountdown(resetsAt);
+  const suffix = cd ? `${OVERLAY}(${RESET}${cd.color}${cd.text}${RESET}${OVERLAY})${RESET}` : '';
+  return `${OVERLAY}${label}:${RESET}${c}${clamped}%${RESET}${suffix}`;
 }
 
 function agentSegment(agents: RenderData['agents']): string | null {
@@ -71,8 +98,8 @@ export function render(data: RenderData): string {
   if (agentStr) segments.push(agentStr);
 
   // Rate limits
-  const r5 = rateSegment('5h', data.fiveHourPercent);
-  const r7 = rateSegment('7d', data.sevenDayPercent);
+  const r5 = rateSegment('5h', data.fiveHourPercent, data.fiveHourResetsAt);
+  const r7 = rateSegment('7d', data.sevenDayPercent, data.sevenDayResetsAt);
   if (r5 && r7) {
     segments.push(`${r5} ${r7}`);
   } else if (r5) {

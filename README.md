@@ -1,9 +1,9 @@
 <!--
   cc-hud — Claude Code statusline plugin
-  Shows: model name, context window usage (progress bar), active subagents, rate limits (5h/7d)
+  Shows: model name, context window usage (progress bar), active subagents, rate limits (5h/7d) with reset countdown
   Pure Node.js, zero dependencies, crash-free on Windows (no Bun)
   Install: /plugin marketplace add WaterTian/cc-hud && /plugin install cc-hud && /cc-hud:setup
-  Keywords: claude-code plugin statusline status-bar hud monitoring context-window rate-limit agents windows crash-free zero-dependency catppuccin
+  Keywords: claude-code plugin statusline status-bar hud monitoring context-window rate-limit reset-countdown agents windows crash-free zero-dependency catppuccin
 -->
 
 <p align="center">
@@ -81,7 +81,7 @@ CC-HUD 是**不会崩溃的替代方案** — 纯 Node.js、零依赖、无状�
   <td align="center" width="20%"><h3>█▌</h3><b>Context Bar</b><br/><sub>1/8-precision blocks<br/>80-level granularity</sub></td>
   <td align="center" width="20%"><h3>🎨</h3><b>Color</b><br/><sub><a href="https://github.com/catppuccin/catppuccin">Catppuccin Mocha</a><br/>4-stop gradient</sub></td>
   <td align="center" width="20%"><h3>◐</h3><b>Agents</b><br/><sub>Running subagents<br/>with type & model</sub></td>
-  <td align="center" width="20%"><h3>%</h3><b>Rate Limits</b><br/><sub>5h / 7d usage<br/>Pro / Max</sub></td>
+  <td align="center" width="20%"><h3>%</h3><b>Rate Limits</b><br/><sub>5h / 7d usage<br/>+ reset countdown</sub></td>
   <td align="center" width="20%"><h3>0</h3><b>Dependencies</b><br/><sub>Zero. Node.js<br/>built-ins only</sub></td>
 </tr>
 </table>
@@ -146,7 +146,7 @@ Claude Code ─── stdin JSON ──→ cc-hud ──→ stdout ──→ sta
 
 ```bash
 npm run build      # compile
-npm test           # 13 tests
+npm test           # 18 tests
 ```
 
 <br/>

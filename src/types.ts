@@ -33,4 +33,6 @@ export interface RenderData {
   agents: AgentEntry[];
   fiveHourPercent: number | null;
   sevenDayPercent: number | null;
+  fiveHourResetsAt: number | null;
+  sevenDayResetsAt: number | null;
 }

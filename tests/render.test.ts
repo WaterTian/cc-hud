@@ -13,6 +13,8 @@ function makeData(overrides: Partial<RenderData> = {}): RenderData {
     agents: [],
     fiveHourPercent: null,
     sevenDayPercent: null,
+    fiveHourResetsAt: null,
+    sevenDayResetsAt: null,
     ...overrides,
   };
 }
@@ -96,5 +98,47 @@ describe('render', () => {
   it('uses peach for high usage', () => {
     const raw = render(makeData({ contextPercent: 80 }));
     assert.match(raw, /\x1b\[38;5;216m/); // PEACH
+  });
+
+  it('shows countdown in hours when resets_at is provided', () => {
+    const resetsAt = Date.now() + 1.9 * 3_600_000; // 1.9h from now
+    const out = strip(render(makeData({
+      fiveHourPercent: 3,
+      fiveHourResetsAt: resetsAt,
+    })));
+    assert.match(out, /5h:3%\(1\.9h\)/);
+  });
+
+  it('shows countdown in days for 7d window', () => {
+    const resetsAt = Date.now() + 2.3 * 86_400_000; // 2.3d from now
+    const out = strip(render(makeData({
+      sevenDayPercent: 90,
+      sevenDayResetsAt: resetsAt,
+    })));
+    assert.match(out, /7d:90%\(2\.3d\)/);
+  });
+
+  it('shows countdown in minutes when less than 1 hour', () => {
+    const resetsAt = Date.now() + 47 * 60_000; // 47m from now
+    const out = strip(render(makeData({
+      fiveHourPercent: 80,
+      fiveHourResetsAt: resetsAt,
+    })));
+    assert.match(out, /5h:80%\(47m\)/);
+  });
+
+  it('omits countdown when resets_at is null', () => {
+    const out = strip(render(makeData({ fiveHourPercent: 25 })));
+    assert.match(out, /5h:\s*25%/);
+    assert.ok(!out.includes('('));
+  });
+
+  it('omits countdown when resets_at is in the past', () => {
+    const resetsAt = Date.now() - 60_000; // 1m ago
+    const out = strip(render(makeData({
+      fiveHourPercent: 25,
+      fiveHourResetsAt: resetsAt,
+    })));
+    assert.ok(!out.includes('('));
   });
 });
