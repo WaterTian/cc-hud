@@ -182,7 +182,7 @@ Claude Code ─── stdin JSON ──→ cc-hud ──→ stdout ──→ sta
 
 ```bash
 npm run build      # compile
-npm test           # 18 tests
+npm test           # 27 tests
 ```
 
 <br/>

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>cc-hud preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    /* Neutral black — renders consistently on GitHub light/dark themes */
+    background: #000000;
+    font-family: 'Inter', -apple-system, system-ui, sans-serif;
+    color: #cdd6f4;
+    padding: 44px 72px 44px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .brand .logo {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #89b4fa 0%, #cba6f7 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .brand .dot {
+    color: #45475a;
+    font-size: 14px;
+  }
+  .brand .tagline {
+    color: #6c7086;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+  .brand .version {
+    margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #585b70;
+    padding: 4px 10px;
+    border: 1px solid #313244;
+    border-radius: 999px;
+    letter-spacing: 0.05em;
+  }
+
+  .rows {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 132px 1fr;
+    align-items: center;
+    gap: 22px;
+    padding: 14px 22px;
+    /* Catppuccin Mocha base — this is the actual terminal bg color track ░ is designed against */
+    background: #1e1e2e;
+    border: 1px solid #313244;
+    border-radius: 10px;
+    box-shadow:
+      inset 0 1px 0 rgba(205,214,244,0.04),
+      0 4px 16px rgba(0,0,0,0.35);
+  }
+
+  .label {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .label .name {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #a6adc8;
+  }
+  .label .hint {
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    color: #585b70;
+  }
+
+  .hud {
+    font-family: 'JetBrains Mono', 'Cascadia Mono', 'Consolas', monospace;
+    font-size: 15px;
+    font-weight: 500;
+    white-space: pre;
+    letter-spacing: 0;
+    line-height: 1.4;
+  }
+
+  /* Catppuccin Mocha palette — must match render.ts exactly */
+  .green    { color: #a6e3a1; }
+  .yellow   { color: #f9e2af; }
+  .peach    { color: #fab387; }
+  .red      { color: #f38ba8; }
+  .teal     { color: #94e2d5; }
+  .blue     { color: #89b4fa; }
+  .sapphire { color: #74c7ec; }
+  .lavender { color: #b4befe; }
+  .flamingo { color: #f2cdcd; }
+  .maroon   { color: #eba0ac; }
+  .overlay  { color: #6c7086; }
+  .surface  { color: #45475a; } /* surface1 — brighter than ANSI 238 for screenshot legibility */
+  .text     { color: #cdd6f4; }
+
+  /* Model name — hero element, slight weight + glow */
+  .hud .blue { font-weight: 600; text-shadow: 0 0 14px rgba(137,180,250,0.28); }
+
+  /* Footer */
+  .footer {
+    margin-top: 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: #45475a;
+    letter-spacing: 0.1em;
+  }
+  .footer .legend {
+    display: flex;
+    gap: 18px;
+    align-items: center;
+  }
+  .legend .sw {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: -1px;
+  }
+</style>
+</head>
+<body>
+
+<div class="brand">
+  <span class="logo">cc-hud</span>
+  <span class="dot">●</span>
+  <span class="tagline">Claude Code statusline</span>
+  <span class="version">v0.2.4</span>
+</div>
+
+<div class="rows">
+
+  <!-- IDLE · Opus 4.7 1M, 7% -->
+  <div class="row">
+    <div class="label">
+      <span class="name">Idle</span>
+      <span class="hint">1M context</span>
+    </div>
+    <div class="hud"><span class="overlay">[</span><span class="blue">Opus 4.7</span><span class="overlay">]</span> <span class="green">▊</span><span class="surface">░░░░░░░░░</span> <span class="green">7%</span> <span class="overlay">(1M)</span> <span class="overlay">│</span> <span class="overlay">5h:</span><span class="green">22%</span> <span class="overlay">(</span><span class="flamingo">1.4h</span><span class="overlay">)</span> <span class="overlay">│</span> <span class="overlay">7d:</span><span class="green">3%</span> <span class="overlay">(</span><span class="sapphire">6.8d</span><span class="overlay">)</span></div>
+  </div>
+
+  <!-- WORKING · Opus 4.7 1M + agents, 75% -->
+  <div class="row">
+    <div class="label">
+      <span class="name">Working</span>
+      <span class="hint">2 subagents</span>
+    </div>
+    <div class="hud"><span class="overlay">[</span><span class="blue">Opus 4.7</span><span class="overlay">]</span> <span class="peach">███████▌</span><span class="surface">░░</span> <span class="peach">75%</span> <span class="overlay">(1M)</span> <span class="overlay">│</span> <span class="teal">◐</span> <span class="text">explore</span> <span class="overlay">[haiku]</span> <span class="teal">◐</span> <span class="text">code-review</span> <span class="overlay">[opus]</span> <span class="overlay">│</span> <span class="overlay">5h:</span><span class="red">88%</span> <span class="overlay">(</span><span class="flamingo">35m</span><span class="overlay">)</span> <span class="overlay">│</span> <span class="overlay">7d:</span><span class="green">42%</span> <span class="overlay">(</span><span class="sapphire">3.2d</span><span class="overlay">)</span></div>
+  </div>
+
+  <!-- CHAT · Sonnet 4.6, 82% -->
+  <div class="row">
+    <div class="label">
+      <span class="name">Chat</span>
+      <span class="hint">standard</span>
+    </div>
+    <div class="hud"><span class="overlay">[</span><span class="blue">Sonnet 4.6</span><span class="overlay">]</span> <span class="peach">████████▎</span><span class="surface">░</span> <span class="peach">82%</span> <span class="overlay">│</span> <span class="overlay">5h:</span><span class="peach">75%</span> <span class="overlay">(</span><span class="lavender">4.2h</span><span class="overlay">)</span> <span class="overlay">│</span> <span class="overlay">7d:</span><span class="green">28%</span> <span class="overlay">(</span><span class="sapphire">5.1d</span><span class="overlay">)</span></div>
+  </div>
+
+  <!-- QUICK · Haiku 4.5, 5% -->
+  <div class="row">
+    <div class="label">
+      <span class="name">Quick</span>
+      <span class="hint">fast path</span>
+    </div>
+    <div class="hud"><span class="overlay">[</span><span class="blue">Haiku 4.5</span><span class="overlay">]</span> <span class="green">▌</span><span class="surface">░░░░░░░░░</span> <span class="green">5%</span> <span class="overlay">│</span> <span class="overlay">5h:</span><span class="green">2%</span> <span class="overlay">(</span><span class="lavender">4.9h</span><span class="overlay">)</span></div>
+  </div>
+
+</div>
+
+</body>
+</html>
