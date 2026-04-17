@@ -187,6 +187,14 @@ npm test           # 27 tests
 
 <br/>
 
+## Star History
+
+<a href="https://star-history.com/#WaterTian/cc-hud&Date">
+  <img src="https://api.star-history.com/svg?repos=WaterTian/cc-hud&type=Date" alt="Star History Chart" width="700" />
+</a>
+
+<br/>
+
 ---
 
 <p align="center">
