@@ -13,7 +13,7 @@
 -->
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.png" alt="cc-hud preview" width="720" />
+  <img src="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.png" alt="cc-hud preview" width="900" />
 </p>
 
 <h1 align="center">CC-HUD</h1>
