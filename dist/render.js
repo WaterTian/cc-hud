@@ -88,8 +88,9 @@ function agentSegment(agents) {
 }
 export function render(data) {
     const segments = [];
-    // Model + context bar
-    segments.push(`${OVERLAY}[${RESET}${BLUE}${data.model}${RESET}${OVERLAY}]${RESET} ${progressBar(data.contextPercent)}`);
+    // Model + context bar (variant suffix lives here — it describes context capacity)
+    const variant = data.modelVariant ? ` ${OVERLAY}(${data.modelVariant})${RESET}` : '';
+    segments.push(`${OVERLAY}[${RESET}${BLUE}${data.model}${RESET}${OVERLAY}]${RESET} ${progressBar(data.contextPercent)}${variant}`);
     // Agents (if any)
     const agentStr = agentSegment(data.agents);
     if (agentStr)

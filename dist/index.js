@@ -1,22 +1,10 @@
 import { readStdin } from './stdin.js';
 import { parseAgents } from './transcript.js';
 import { render } from './render.js';
+import { shortModelName } from './model.js';
 // Hard timeout — never block Claude Code
 const TIMEOUT_MS = 2000;
 setTimeout(() => process.exit(0), TIMEOUT_MS).unref();
-function shortModelName(displayName, id) {
-    if (displayName) {
-        const stripped = displayName.replace(/\s*\(.*?\)\s*/g, '').trim();
-        if (stripped)
-            return stripped;
-    }
-    if (id) {
-        const m = id.match(/claude-(\w+)-(\d+)-(\d+)/);
-        if (m)
-            return `${m[1][0].toUpperCase()}${m[1].slice(1)} ${m[2]}.${m[3]}`;
-    }
-    return 'Claude';
-}
 async function main() {
     const data = await readStdin();
     // Parse transcript in parallel with render prep — no dependency
@@ -28,8 +16,10 @@ async function main() {
             return null;
         return ts < 1e12 ? ts * 1000 : ts;
     };
+    const modelName = shortModelName(data.model?.display_name, data.model?.id);
     const renderData = {
-        model: shortModelName(data.model?.display_name, data.model?.id),
+        model: modelName.name,
+        modelVariant: modelName.variant,
         contextPercent: Math.round(contextPercent),
         agents,
         fiveHourPercent: data.rate_limits?.five_hour?.used_percentage ?? null,

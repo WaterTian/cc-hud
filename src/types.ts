@@ -29,6 +29,7 @@ export interface AgentEntry {
 
 export interface RenderData {
   model: string;
+  modelVariant: string | null;
   contextPercent: number;
   agents: AgentEntry[];
   fiveHourPercent: number | null;

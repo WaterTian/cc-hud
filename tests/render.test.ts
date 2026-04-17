@@ -9,6 +9,7 @@ const strip = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');
 function makeData(overrides: Partial<RenderData> = {}): RenderData {
   return {
     model: 'Opus',
+    modelVariant: null,
     contextPercent: 0,
     agents: [],
     fiveHourPercent: null,
@@ -36,6 +37,16 @@ describe('render', () => {
     assert.match(outLow, /0%/);
     const outHigh = strip(render(makeData({ contextPercent: 150 })));
     assert.match(outHigh, /100%/);
+  });
+
+  it('shows model variant after context percentage', () => {
+    const out = strip(render(makeData({ contextPercent: 5, modelVariant: '1M' })));
+    assert.match(out, /\[Opus\].*5%\s+\(1M\)/);
+  });
+
+  it('omits variant parens when modelVariant is null', () => {
+    const out = strip(render(makeData({ contextPercent: 5 })));
+    assert.ok(!out.includes('(1M)'));
   });
 
   it('shows rate limits when provided', () => {
