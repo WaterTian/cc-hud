@@ -5,9 +5,9 @@
 
   ## Auto-install (for Claude Code AI agents)
   Step 1: /plugin marketplace add WaterTian/cc-hud
-  Step 2: /plugin install cc-hud@WaterTian-cc-hud
-  Step 3: /cc-hud:setup
-  Step 4: Restart Claude Code
+  Step 2: /plugin install cc-hud@cc-hud
+  Step 3: /reload-plugins
+  Step 4: /cc-hud:setup  (skip if statusLine is already configured — see README)
 
   Keywords: claude-code plugin statusline status-bar hud monitoring context-window rate-limit reset-countdown agents windows crash-free zero-dependency catppuccin
 -->
@@ -100,18 +100,19 @@ CC-HUD 是**不会崩溃的替代方案** — 纯 Node.js、零依赖、无状�
 
 ## Install
 
-Inside Claude Code, run these 3 commands:
+Inside Claude Code:
 
 ```
 /plugin marketplace add WaterTian/cc-hud
-/plugin install cc-hud@WaterTian-cc-hud
-/cc-hud:setup
+/plugin install cc-hud@cc-hud
+/reload-plugins
+/cc-hud:setup        # only if no statusLine is configured yet
 ```
 
-Restart Claude Code. **Done.**
+**Done** — no restart needed; `/reload-plugins` hot-loads the HUD.
 
 > [!NOTE]
-> After install, use `/reload-plugins` to load without restarting.
+> `/cc-hud:setup` writes the `statusLine` entry into `~/.claude/settings.json`. **Skip it** if you already have a `statusLine` configured (e.g. via `cc-bot`, an older install, or hand-edited settings) — overwriting may break upstream shims that tee stdin to cc-hud.
 
 <details>
 <summary><b>Via npm (manual)</b></summary>
