@@ -179,11 +179,25 @@ Claude Code ─── stdin JSON ──→ cc-hud ──→ stdout ──→ sta
 
 <br/>
 
+## Balance Display (DeepSeek)
+
+When using **DeepSeek** as the backend (`ANTHROPIC_BASE_URL` set to `https://api.deepseek.com/anthropic`), cc-hud **automatically** shows your account balance — **zero configuration required**.
+
+```
+[DeepSeek V4 Pro] ██░░░░░░░░ 20% │ ¥13.44
+```
+
+Balance is cached locally for 5 minutes. On cache miss, cc-hud fetches the latest balance from DeepSeek's API. Works with `dscode`, `deepseekcode`, or any launcher that sets `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN`.
+
+**For other backends** (GLM, custom endpoints), set `CC_HUD_EXTRA_FILE` env var to a file whose first line is the text to display. See `scripts/ds-balance-cache.sh` for a reference cache implementation.
+
+<br/>
+
 ## Development
 
 ```bash
 npm run build      # compile
-npm test           # 27 tests
+npm test           # 32 tests
 ```
 
 <br/>

@@ -7,13 +7,18 @@ export interface ModelName {
 
 export function shortModelName(displayName?: string, id?: string): ModelName {
   if (id) {
-    const m = id.match(/claude-(\w+)-(\d+)-(\d+)(?:-\d+)?(?:\[(\w+)\])?/);
-    if (m) {
-      const family = `${m[1][0].toUpperCase()}${m[1].slice(1)}`;
+    const cm = id.match(/claude-(\w+)-(\d+)-(\d+)(?:-\d+)?(?:\[(\w+)\])?/);
+    if (cm) {
+      const family = `${cm[1][0].toUpperCase()}${cm[1].slice(1)}`;
       return {
-        name: `${family} ${m[2]}.${m[3]}`,
-        variant: m[4] ? m[4].toUpperCase() : null,
+        name: `${family} ${cm[2]}.${cm[3]}`,
+        variant: cm[4] ? cm[4].toUpperCase() : null,
       };
+    }
+    const dm = id.match(/^deepseek-(v\d+(?:-\w+))$/);
+    if (dm) {
+      const v = dm[1].replace(/^v/, 'V').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      return { name: `DeepSeek ${v}`, variant: null };
     }
   }
   if (displayName) {

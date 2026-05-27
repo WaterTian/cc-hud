@@ -16,6 +16,7 @@ function makeData(overrides: Partial<RenderData> = {}): RenderData {
     sevenDayPercent: null,
     fiveHourResetsAt: null,
     sevenDayResetsAt: null,
+    extra: null,
     ...overrides,
   };
 }
@@ -150,5 +151,29 @@ describe('render', () => {
       fiveHourResetsAt: resetsAt,
     })));
     assert.ok(!out.includes('('));
+  });
+
+  it('shows extra segment when provided', () => {
+    const out = strip(render(makeData({ extra: '¥3.77' })));
+    assert.match(out, /¥3\.77/);
+  });
+
+  it('omits extra segment when null', () => {
+    const out = strip(render(makeData({ extra: null })));
+    assert.ok(!out.includes('¥'));
+  });
+
+  it('shows extra segment alongside rate limits', () => {
+    const out = strip(render(makeData({
+      fiveHourPercent: 50,
+      extra: '¥3.77',
+    })));
+    assert.match(out, /5h:.*50%/);
+    assert.match(out, /¥3\.77/);
+  });
+
+  it('renders DeepSeek model name', () => {
+    const out = strip(render(makeData({ model: 'DeepSeek V4 Pro' })));
+    assert.match(out, /\[DeepSeek V4 Pro\]/);
   });
 });

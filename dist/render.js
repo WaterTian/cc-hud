@@ -107,5 +107,9 @@ export function render(data) {
     else if (r7) {
         segments.push(r7);
     }
+    // Extra (generic pluggable segment, e.g. balance for non-Anthropic backends)
+    if (data.extra) {
+        segments.push(`${TEAL}${data.extra}${RESET}`);
+    }
     return segments.join(` ${OVERLAY}│${RESET} `);
 }

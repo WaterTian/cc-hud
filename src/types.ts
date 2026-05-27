@@ -36,4 +36,5 @@ export interface RenderData {
   sevenDayPercent: number | null;
   fiveHourResetsAt: number | null;
   sevenDayResetsAt: number | null;
+  extra: string | null;
 }

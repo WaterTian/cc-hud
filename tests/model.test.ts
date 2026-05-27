@@ -43,4 +43,9 @@ describe('shortModelName', () => {
   it('falls back to display_name when id does not match pattern', () => {
     assert.deepEqual(shortModelName('Custom', 'unknown-model-id'), { name: 'Custom', variant: null });
   });
+
+  it('beautifies DeepSeek model ids', () => {
+    assert.deepEqual(shortModelName(undefined, 'deepseek-v4-pro'), { name: 'DeepSeek V4 Pro', variant: null });
+    assert.deepEqual(shortModelName(undefined, 'deepseek-v4-flash'), { name: 'DeepSeek V4 Flash', variant: null });
+  });
 });
