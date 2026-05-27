@@ -8,10 +8,10 @@ export function shortModelName(displayName, id) {
                 variant: cm[4] ? cm[4].toUpperCase() : null,
             };
         }
-        const dm = id.match(/^deepseek-(v\d+(?:-\w+))$/);
+        const dm = id.match(/^deepseek-(v\d+(?:-\w+))(?:\[(\w+)\])?$/);
         if (dm) {
             const v = dm[1].replace(/^v/, 'V').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-            return { name: `DeepSeek ${v}`, variant: null };
+            return { name: `DeepSeek ${v}`, variant: dm[2] ? dm[2].toUpperCase() : null };
         }
     }
     if (displayName) {
