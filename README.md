@@ -112,7 +112,14 @@ Inside Claude Code:
 **Done** — no restart needed; `/reload-plugins` hot-loads the HUD.
 
 > [!NOTE]
-> `/cc-hud:setup` writes the `statusLine` entry into `~/.claude/settings.json`. **Skip it** if you already have a `statusLine` configured (e.g. via `cc-bot`, an older install, or hand-edited settings) — overwriting may break upstream shims that tee stdin to cc-hud.
+> `/cc-hud:setup` writes the `statusLine` entry into `~/.claude/settings.json`. **Skip it** if you already have a `statusLine` configured (e.g. via `cc-bot`, an older install, or hand-edited settings).
+
+### Upgrade
+
+```
+/plugin marketplace update cc-hud
+/reload-plugins
+```
 
 <details>
 <summary><b>Via npm (manual)</b></summary>
