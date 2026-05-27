@@ -47,5 +47,6 @@ describe('shortModelName', () => {
   it('beautifies DeepSeek model ids', () => {
     assert.deepEqual(shortModelName(undefined, 'deepseek-v4-pro'), { name: 'DeepSeek V4 Pro', variant: null });
     assert.deepEqual(shortModelName(undefined, 'deepseek-v4-flash'), { name: 'DeepSeek V4 Flash', variant: null });
+    assert.deepEqual(shortModelName(undefined, 'deepseek-v4-pro[1m]'), { name: 'DeepSeek V4 Pro', variant: '1M' });
   });
 });
