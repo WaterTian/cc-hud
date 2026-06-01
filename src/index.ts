@@ -3,6 +3,7 @@ import { parseAgents } from './transcript.js';
 import { render } from './render.js';
 import { shortModelName } from './model.js';
 import { getExtra } from './balance.js';
+import { getMmxQuota } from './mmx.js';
 import { readFileSync } from 'node:fs';
 import type { RenderData } from './types.js';
 
@@ -40,15 +41,18 @@ async function main(): Promise<void> {
   // Extra segment: explicit CC_HUD_EXTRA_FILE > auto DeepSeek balance detection
   const extra = readExtraFile() ?? await getExtra();
 
+  // MiniMax Token Plan quota — no-op for Claude/DeepSeek (returns null)
+  const mmQuota = await getMmxQuota(data.model?.id);
+
   const renderData: RenderData = {
     model: modelName.name,
     modelVariant: modelName.variant,
     contextPercent: Math.round(contextPercent),
     agents,
-    fiveHourPercent: data.rate_limits?.five_hour?.used_percentage ?? null,
-    sevenDayPercent: data.rate_limits?.seven_day?.used_percentage ?? null,
-    fiveHourResetsAt: toMs(data.rate_limits?.five_hour?.resets_at),
-    sevenDayResetsAt: toMs(data.rate_limits?.seven_day?.resets_at),
+    fiveHourPercent: data.rate_limits?.five_hour?.used_percentage ?? mmQuota?.fiveHourUsedPct ?? null,
+    sevenDayPercent: data.rate_limits?.seven_day?.used_percentage ?? mmQuota?.sevenDayUsedPct ?? null,
+    fiveHourResetsAt: toMs(data.rate_limits?.five_hour?.resets_at) ?? mmQuota?.fiveHourResetsAt ?? null,
+    sevenDayResetsAt: toMs(data.rate_limits?.seven_day?.resets_at) ?? mmQuota?.sevenDayResetsAt ?? null,
     extra,
   };
 

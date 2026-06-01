@@ -49,4 +49,25 @@ describe('shortModelName', () => {
     assert.deepEqual(shortModelName(undefined, 'deepseek-v4-flash'), { name: 'DeepSeek V4 Flash', variant: null });
     assert.deepEqual(shortModelName(undefined, 'deepseek-v4-pro[1m]'), { name: 'DeepSeek V4 Pro', variant: '1M' });
   });
+
+  it('beautifies MiniMax M3 model id', () => {
+    assert.deepEqual(shortModelName(undefined, 'MiniMax-M3'), { name: 'MiniMax M3', variant: null });
+  });
+
+  it('extracts MiniMax 1M variant suffix', () => {
+    assert.deepEqual(shortModelName(undefined, 'MiniMax-M3[1m]'), { name: 'MiniMax M3', variant: '1M' });
+  });
+
+  it('beautifies MiniMax-Text-01 model id', () => {
+    assert.deepEqual(shortModelName(undefined, 'MiniMax-Text-01'), { name: 'MiniMax Text 01', variant: null });
+  });
+
+  it('beautifies legacy ABAB model ids', () => {
+    assert.deepEqual(shortModelName(undefined, 'abab-6.5s-chat'), { name: 'ABAB 6.5s Chat', variant: null });
+    assert.deepEqual(shortModelName(undefined, 'abab-7-chat'), { name: 'ABAB 7 Chat', variant: null });
+  });
+
+  it('returns family only when MiniMax id has no sub-model', () => {
+    assert.deepEqual(shortModelName(undefined, 'MiniMax'), { name: 'MiniMax', variant: null });
+  });
 });
