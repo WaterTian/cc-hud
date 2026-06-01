@@ -9,7 +9,7 @@
   Step 3: /reload-plugins
   Step 4: /cc-hud:setup  (skip if statusLine is already configured — see README)
 
-  Keywords: claude-code plugin statusline status-bar hud monitoring context-window rate-limit reset-countdown agents windows crash-free zero-dependency catppuccin
+  Keywords: claude-code plugin statusline status-bar hud monitoring context-window rate-limit reset-countdown agents windows crash-free zero-dependency catppuccin deepseek minimax glm token-plan
 -->
 
 <p align="center">
@@ -200,11 +200,25 @@ Balance is cached locally for 5 minutes. On cache miss, cc-hud fetches the lates
 
 <br/>
 
+## Quota Display (MiniMax)
+
+When using **MiniMax M3** as the backend (`ANTHROPIC_BASE_URL` set to `https://api.minimaxi.com/anthropic`), cc-hud **automatically** shows your Token Plan quota — **zero configuration required**.
+
+```
+[MiniMax M3] █▎░░░░░░░░ 13% │ 5h:17% (1.1h) │ 7d:2% (6.4d)
+```
+
+Token Plan usage (5h interval ＋ weekly) is fetched from MiniMax's `/v1/token_plan/remains` endpoint, cached locally for 5 minutes. Model names are beautified automatically: `MiniMax-M3` → `MiniMax M3`, `MiniMax-M3[1m]` → `MiniMax M3 (1M)`, `abab-6.5s-chat` → `ABAB 6.5s Chat`.
+
+Works with `mmcode` or any launcher that sets `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN`.
+
+<br/>
+
 ## Development
 
 ```bash
 npm run build      # compile
-npm test           # 32 tests
+npm test           # 57 tests
 ```
 
 <br/>
