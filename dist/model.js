@@ -13,6 +13,14 @@ export function shortModelName(displayName, id) {
             const v = dm[1].replace(/^v/, 'V').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
             return { name: `DeepSeek ${v}`, variant: dm[2] ? dm[2].toUpperCase() : null };
         }
+        const mm = id.match(/^(MiniMax|abab)(?:-([\w][\w.-]*))?(?:\[(\w+)\])?$/);
+        if (mm) {
+            const family = mm[1] === 'abab' ? 'ABAB' : 'MiniMax';
+            const sub = mm[2];
+            const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+            const name = sub ? `${family} ${sub.split('-').map(capitalize).join(' ')}` : family;
+            return { name, variant: mm[3] ? mm[3].toUpperCase() : null };
+        }
     }
     if (displayName) {
         const stripped = displayName.replace(/\s*\(.*?\)\s*/g, '').trim();
