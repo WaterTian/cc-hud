@@ -32,27 +32,28 @@ function writeCache(payload) {
     }
     catch { /* best effort */ }
 }
-function pickModel(remains, modelName) {
+// Token Plan Plus: text/image/voice/music share a single quota window
+// (each model_remains entry shows the same plan total, usage is per-model).
+// Aggregate by summing usage across all models and using max total as plan quota.
+function aggregatePlan(remains) {
     if (remains.length === 0)
         return null;
-    if (modelName) {
-        const found = remains.find(m => m.model_name.toLowerCase() === modelName.toLowerCase());
-        if (found)
-            return found;
-    }
-    return remains[0];
-}
-function toQuota(m) {
+    const sumUsage = remains.reduce((a, m) => a + m.current_interval_usage_count, 0);
+    const sumWeekly = remains.reduce((a, m) => a + m.current_weekly_usage_count, 0);
+    const total5h = Math.max(...remains.map(m => m.current_interval_total_count));
+    const total7d = Math.max(...remains.map(m => m.current_weekly_total_count));
+    const minRemains = Math.min(...remains.map(m => m.remains_time));
+    const minWeekly = Math.min(...remains.map(m => m.weekly_remains_time));
     const now = Date.now();
-    const safePct = (used, total) => total > 0 ? Math.round((used / total) * 100) : 0;
+    const safePct = (u, t) => t > 0 ? Math.round((u / t) * 100) : 0;
     return {
-        fiveHourUsedPct: safePct(m.current_interval_usage_count, m.current_interval_total_count),
-        fiveHourResetsAt: now + m.remains_time,
-        sevenDayUsedPct: safePct(m.current_weekly_usage_count, m.current_weekly_total_count),
-        sevenDayResetsAt: now + m.weekly_remains_time,
+        fiveHourUsedPct: safePct(sumUsage, total5h),
+        fiveHourResetsAt: now + minRemains,
+        sevenDayUsedPct: safePct(sumWeekly, total7d),
+        sevenDayResetsAt: now + minWeekly,
     };
 }
-async function fetchQuota(apiKey, modelName) {
+async function fetchQuota(apiKey) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
     try {
@@ -63,8 +64,7 @@ async function fetchQuota(apiKey, modelName) {
         if (!resp.ok)
             return null;
         const data = (await resp.json());
-        const m = pickModel(data.model_remains ?? [], modelName);
-        return m ? toQuota(m) : null;
+        return aggregatePlan(data.model_remains ?? []);
     }
     catch {
         return null;
@@ -74,7 +74,7 @@ async function fetchQuota(apiKey, modelName) {
         timer.unref();
     }
 }
-export async function getMmxQuota(modelName) {
+export async function getMmxQuota() {
     if (!isMmx())
         return null;
     const apiKey = process.env.ANTHROPIC_AUTH_TOKEN;
@@ -84,7 +84,7 @@ export async function getMmxQuota(modelName) {
     if (cached && Date.now() - cached.ts < TTL) {
         return cached.payload;
     }
-    const quota = await fetchQuota(apiKey, modelName);
+    const quota = await fetchQuota(apiKey);
     if (quota) {
         writeCache(quota);
         return quota;

@@ -147,28 +147,72 @@ describe('mmx quota', () => {
       assert.ok(Math.abs(result!.sevenDayResetsAt - (now + 554400000)) < 1000);
     });
 
-    it('picks matching model when modelName given', async () => {
+    it('aggregates usage across all models (Token Plan Plus shared quota)', async () => {
+      // Plan total = 100 (shared across text/image/voice/music per Plus spec)
+      // M3 user is on has 0, but other models have usage
       nextResponse = new Response(JSON.stringify({
         model_remains: [
-          { model_name: 'MiniMax-M3', remains_time: 1000, current_interval_total_count: 100, current_interval_usage_count: 10, weekly_remains_time: 2000, current_weekly_total_count: 200, current_weekly_usage_count: 20 },
-          { model_name: 'MiniMax-Text-01', remains_time: 3000, current_interval_total_count: 100, current_interval_usage_count: 50, weekly_remains_time: 4000, current_weekly_total_count: 200, current_weekly_usage_count: 80 },
+          { model_name: 'MiniMax-M3', remains_time: 1000, current_interval_total_count: 100, current_interval_usage_count: 0, weekly_remains_time: 2000, current_weekly_total_count: 100, current_weekly_usage_count: 0 },
+          { model_name: 'MiniMax-Text-01', remains_time: 1000, current_interval_total_count: 100, current_interval_usage_count: 8, weekly_remains_time: 2000, current_weekly_total_count: 100, current_weekly_usage_count: 2 },
+          { model_name: 'MiniMax-Image', remains_time: 1000, current_interval_total_count: 100, current_interval_usage_count: 0, weekly_remains_time: 2000, current_weekly_total_count: 100, current_weekly_usage_count: 0 },
+          { model_name: 'MiniMax-Voice', remains_time: 1000, current_interval_total_count: 100, current_interval_usage_count: 0, weekly_remains_time: 2000, current_weekly_total_count: 100, current_weekly_usage_count: 0 },
+          { model_name: 'MiniMax-Music', remains_time: 1000, current_interval_total_count: 100, current_interval_usage_count: 0, weekly_remains_time: 2000, current_weekly_total_count: 100, current_weekly_usage_count: 0 },
         ],
       }));
       const { getMmxQuota } = await importMmx();
-      const result = await getMmxQuota('MiniMax-Text-01');
-      assert.equal(result!.fiveHourUsedPct, 50);
-      assert.equal(result!.sevenDayUsedPct, 40);
+      const result = await getMmxQuota();
+      // sum 5h = 0+8+0+0+0 = 8, max total = 100 → 8%
+      assert.equal(result!.fiveHourUsedPct, 8);
+      // sum 7d = 0+2+0+0+0 = 2, max total = 100 → 2%
+      assert.equal(result!.sevenDayUsedPct, 2);
     });
 
-    it('falls back to first model when modelName does not match', async () => {
+    it('aggregates from any model.id input (no model selection)', async () => {
+      // Old code: pickModel would return the M3 entry (0%), wrong
+      // New code: aggregatePlan ignores modelName, sums all
       nextResponse = new Response(JSON.stringify({
         model_remains: [
-          { model_name: 'MiniMax-M3', remains_time: 1000, current_interval_total_count: 100, current_interval_usage_count: 10, weekly_remains_time: 2000, current_weekly_total_count: 200, current_weekly_usage_count: 20 },
+          { model_name: 'MiniMax-M3', remains_time: 1000, current_interval_total_count: 100, current_interval_usage_count: 0, weekly_remains_time: 2000, current_weekly_total_count: 100, current_weekly_usage_count: 0 },
+          { model_name: 'MiniMax-Text-01', remains_time: 1000, current_interval_total_count: 100, current_interval_usage_count: 8, weekly_remains_time: 2000, current_weekly_total_count: 100, current_weekly_usage_count: 2 },
         ],
       }));
       const { getMmxQuota } = await importMmx();
-      const result = await getMmxQuota('MiniMax-Text-99');
-      assert.equal(result!.fiveHourUsedPct, 10);
+      // Caller previously passed modelName; new API has no arg
+      const result = await getMmxQuota();
+      assert.equal(result!.fiveHourUsedPct, 8);
+    });
+
+    it('single model — aggregation matches per-model (no regression)', async () => {
+      nextResponse = new Response(JSON.stringify({
+        model_remains: [{
+          model_name: 'MiniMax-M3',
+          remains_time: 1000,
+          current_interval_total_count: 100,
+          current_interval_usage_count: 17,
+          weekly_remains_time: 2000,
+          current_weekly_total_count: 200,
+          current_weekly_usage_count: 8,
+        }],
+      }));
+      const { getMmxQuota } = await importMmx();
+      const result = await getMmxQuota();
+      assert.equal(result!.fiveHourUsedPct, 17);
+      assert.equal(result!.sevenDayUsedPct, 4);
+    });
+
+    it('uses min reset time across models (plan-level window)', async () => {
+      nextResponse = new Response(JSON.stringify({
+        model_remains: [
+          { model_name: 'a', remains_time: 5000, current_interval_total_count: 100, current_interval_usage_count: 1, weekly_remains_time: 8000, current_weekly_total_count: 100, current_weekly_usage_count: 1 },
+          { model_name: 'b', remains_time: 1000, current_interval_total_count: 100, current_interval_usage_count: 2, weekly_remains_time: 2000, current_weekly_total_count: 100, current_weekly_usage_count: 2 },
+          { model_name: 'c', remains_time: 3000, current_interval_total_count: 100, current_interval_usage_count: 3, weekly_remains_time: 4000, current_weekly_total_count: 100, current_weekly_usage_count: 3 },
+        ],
+      }));
+      const { getMmxQuota } = await importMmx();
+      const result = await getMmxQuota();
+      // Reset time should be the earliest (1000ms, 2000ms — model b)
+      assert.ok(Math.abs(result!.fiveHourResetsAt - (Date.now() + 1000)) < 100);
+      assert.ok(Math.abs(result!.sevenDayResetsAt - (Date.now() + 2000)) < 100);
     });
 
     it('returns null for empty model_remains', async () => {
@@ -193,17 +237,6 @@ describe('mmx quota', () => {
       const result = await getMmxQuota();
       assert.equal(result!.fiveHourUsedPct, 0);
       assert.equal(result!.sevenDayUsedPct, 0);
-    });
-
-    it('matches model_name case-insensitively', async () => {
-      nextResponse = new Response(JSON.stringify({
-        model_remains: [
-          { model_name: 'MiniMax-Text-01', remains_time: 1000, current_interval_total_count: 100, current_interval_usage_count: 30, weekly_remains_time: 2000, current_weekly_total_count: 200, current_weekly_usage_count: 60 },
-        ],
-      }));
-      const { getMmxQuota } = await importMmx();
-      const result = await getMmxQuota('minimax-text-01');
-      assert.equal(result!.fiveHourUsedPct, 30);
     });
   });
 

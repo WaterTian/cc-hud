@@ -42,7 +42,7 @@ async function main(): Promise<void> {
   const extra = readExtraFile() ?? await getExtra();
 
   // MiniMax Token Plan quota — no-op for Claude/DeepSeek (returns null)
-  const mmQuota = await getMmxQuota(data.model?.id);
+  const mmQuota = await getMmxQuota();
 
   const renderData: RenderData = {
     model: modelName.name,

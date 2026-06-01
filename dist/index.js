@@ -35,7 +35,7 @@ async function main() {
     // Extra segment: explicit CC_HUD_EXTRA_FILE > auto DeepSeek balance detection
     const extra = readExtraFile() ?? await getExtra();
     // MiniMax Token Plan quota — no-op for Claude/DeepSeek (returns null)
-    const mmQuota = await getMmxQuota(data.model?.id);
+    const mmQuota = await getMmxQuota();
     const renderData = {
         model: modelName.name,
         modelVariant: modelName.variant,
