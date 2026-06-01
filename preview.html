@@ -5,7 +5,7 @@
 <title>cc-hud preview</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&family=Geist:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
 <style>
   * { box-sizing: border-box; }
   html { zoom: 2; } /* Retina-ready */
@@ -15,12 +15,11 @@
     /* Match GitHub dark canvas so the PNG blends seamlessly in README */
     background: #0d1117;
     font-family: 'Geist', -apple-system, system-ui, sans-serif;
-    font-feature-settings: "ss01", "ss02", "cv11";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: geometricPrecision;
     color: #cdd6f4;
-    padding: 28px 32px;
+    padding: 32px 32px;
     display: flex;
     justify-content: center;
   }
@@ -29,13 +28,13 @@
   .term {
     width: 100%;
     max-width: 1160px;
-    border-radius: 12px;
+    border-radius: 14px;
     background: #1e1e2e; /* Catppuccin base — real terminal bg */
     border: 1px solid #313244;
     box-shadow:
-      0 24px 60px -12px rgba(0,0,0,0.75),
-      0 0 0 1px rgba(205,214,244,0.02),
-      inset 0 1px 0 rgba(205,214,244,0.05);
+      0 32px 80px -16px rgba(0,0,0,0.85),
+      0 0 0 1px rgba(205,214,244,0.03),
+      inset 0 1px 0 rgba(205,214,244,0.06);
     overflow: hidden;
   }
 
@@ -44,7 +43,7 @@
     display: grid;
     grid-template-columns: 120px 1fr 120px;
     align-items: center;
-    padding: 11px 16px;
+    padding: 12px 16px;
     background: linear-gradient(180deg, #181825 0%, #11111b 100%);
     border-bottom: 1px solid #313244;
   }
@@ -81,7 +80,7 @@
 
   /* Body */
   .body {
-    padding: 28px 30px 30px;
+    padding: 30px 30px 30px;
     font-family: 'Geist Mono', 'JetBrains Mono', 'Cascadia Mono', 'Consolas', monospace;
     font-size: 18px;
     line-height: 1.7;
@@ -112,7 +111,7 @@
   .peach    { color: #fab387; }
   .red      { color: #f38ba8; }
   .teal     { color: #94e2d5; }
-  .blue     { color: #89b4fa; font-weight: 600; text-shadow: 0 0 12px rgba(137,180,250,0.35); }
+  .blue     { color: #89b4fa; font-weight: 600; text-shadow: 0 0 14px rgba(137,180,250,0.42); }
   .sapphire { color: #74c7ec; }
   .lavender { color: #b4befe; }
   .flamingo { color: #f2cdcd; }
@@ -124,43 +123,43 @@
 </head>
 <body>
 
-<div class="term">
+  <div class="term">
 
-  <!-- Title bar: macOS-style traffic lights + terminal name + version -->
-  <div class="title">
-    <div class="dots">
-      <div class="dot r"></div>
-      <div class="dot y"></div>
-      <div class="dot g"></div>
+    <!-- Title bar: macOS-style traffic lights + terminal name + version -->
+    <div class="title">
+      <div class="dots">
+        <div class="dot r"></div>
+        <div class="dot y"></div>
+        <div class="dot g"></div>
+      </div>
+      <div class="name"><span class="accent">cc-hud</span> &nbsp;·&nbsp; claude code statusline</div>
+      <div class="badge">v0.4.0</div>
     </div>
-    <div class="name"><span class="accent">cc-hud</span> &nbsp;·&nbsp; claude code statusline</div>
-    <div class="badge">v0.4.0</div>
+
+    <!-- Body: 4 scenarios — anthropic / deepseek / minimax / quick -->
+    <div class="body">
+
+      <div class="line comment"># <span class="tag">anthropic</span> — Opus 4.7 1M, subagent running, rate limits</div>
+      <div class="line"><span class="overlay">[</span><span class="blue">Opus 4.7</span><span class="overlay">]</span> <span class="green">▊</span><span class="surface">░░░░░░░░░</span> <span class="green">7%</span> <span class="overlay">(1M)</span> <span class="overlay">│</span> <span class="teal">◐</span> <span class="text">explore</span> <span class="overlay">[haiku]</span> <span class="overlay">│</span> <span class="overlay">5h:</span><span class="green">22%</span> <span class="overlay">(</span><span class="flamingo">1.4h</span><span class="overlay">)</span> <span class="overlay">│</span> <span class="overlay">7d:</span><span class="green">3%</span> <span class="overlay">(</span><span class="sapphire">6.8d</span><span class="overlay">)</span></div>
+
+      <div class="spacer"></div>
+
+      <div class="line comment"># <span class="tag">deepseek</span> — DeepSeek V4 Pro 1M, auto balance ¥13.44</div>
+      <div class="line"><span class="overlay">[</span><span class="blue">DeepSeek V4 Pro</span><span class="overlay">]</span> <span class="green">██</span><span class="surface">░░░░░░░░</span> <span class="green">20%</span> <span class="overlay">(1M)</span> <span class="overlay">│</span> <span class="overlay">5h:</span><span class="green">30%</span> <span class="overlay">(</span><span class="lavender">3.2h</span><span class="overlay">)</span> <span class="overlay">│</span> <span class="teal">¥13.44</span></div>
+
+      <div class="spacer"></div>
+
+      <div class="line comment"># <span class="tag">minimax</span> — MiniMax M3, Token Plan quota 5h＋weekly</div>
+      <div class="line"><span class="overlay">[</span><span class="blue">MiniMax M3</span><span class="overlay">]</span> <span class="green">█▎</span><span class="surface">░░░░░░░░</span> <span class="green">17%</span> <span class="overlay">│</span> <span class="overlay">5h:</span><span class="green">17%</span> <span class="overlay">(</span><span class="flamingo">1.1h</span><span class="overlay">)</span> <span class="overlay">│</span> <span class="overlay">7d:</span><span class="green">2%</span> <span class="overlay">(</span><span class="sapphire">6.4d</span><span class="overlay">)</span></div>
+
+      <div class="spacer"></div>
+
+      <div class="line comment"># <span class="tag">quick</span> — Haiku 4.5 fast path, minimal overhead</div>
+      <div class="line"><span class="overlay">[</span><span class="blue">Haiku 4.5</span><span class="overlay">]</span> <span class="green">▌</span><span class="surface">░░░░░░░░░</span> <span class="green">5%</span> <span class="overlay">│</span> <span class="overlay">5h:</span><span class="green">2%</span> <span class="overlay">(</span><span class="lavender">4.9h</span><span class="overlay">)</span></div>
+
+    </div>
+
   </div>
-
-  <!-- Body: 4 scenarios — anthropic / deepseek / minimax / quick -->
-  <div class="body">
-
-    <div class="line comment"># <span class="tag">anthropic</span> — Opus 4.7 1M, subagent running, rate limits</div>
-    <div class="line"><span class="overlay">[</span><span class="blue">Opus 4.7</span><span class="overlay">]</span> <span class="green">▊</span><span class="surface">░░░░░░░░░</span> <span class="green">7%</span> <span class="overlay">(1M)</span> <span class="overlay">│</span> <span class="teal">◐</span> <span class="text">explore</span> <span class="overlay">[haiku]</span> <span class="overlay">│</span> <span class="overlay">5h:</span><span class="green">22%</span> <span class="overlay">(</span><span class="flamingo">1.4h</span><span class="overlay">)</span> <span class="overlay">│</span> <span class="overlay">7d:</span><span class="green">3%</span> <span class="overlay">(</span><span class="sapphire">6.8d</span><span class="overlay">)</span></div>
-
-    <div class="spacer"></div>
-
-    <div class="line comment"># <span class="tag">deepseek</span> — DeepSeek V4 Pro 1M, auto balance ¥13.44</div>
-    <div class="line"><span class="overlay">[</span><span class="blue">DeepSeek V4 Pro</span><span class="overlay">]</span> <span class="green">██</span><span class="surface">░░░░░░░░</span> <span class="green">20%</span> <span class="overlay">(1M)</span> <span class="overlay">│</span> <span class="overlay">5h:</span><span class="green">30%</span> <span class="overlay">(</span><span class="lavender">3.2h</span><span class="overlay">)</span> <span class="overlay">│</span> <span class="teal">¥13.44</span></div>
-
-    <div class="spacer"></div>
-
-    <div class="line comment"># <span class="tag">minimax</span> — MiniMax M3, Token Plan quota 5h＋weekly</div>
-    <div class="line"><span class="overlay">[</span><span class="blue">MiniMax M3</span><span class="overlay">]</span> <span class="green">█▎</span><span class="surface">░░░░░░░░</span> <span class="green">17%</span> <span class="overlay">│</span> <span class="overlay">5h:</span><span class="green">17%</span> <span class="overlay">(</span><span class="flamingo">1.1h</span><span class="overlay">)</span> <span class="overlay">│</span> <span class="overlay">7d:</span><span class="green">2%</span> <span class="overlay">(</span><span class="sapphire">6.4d</span><span class="overlay">)</span></div>
-
-    <div class="spacer"></div>
-
-    <div class="line comment"># <span class="tag">quick</span> — Haiku 4.5 fast path, minimal overhead</div>
-    <div class="line"><span class="overlay">[</span><span class="blue">Haiku 4.5</span><span class="overlay">]</span> <span class="green">▌</span><span class="surface">░░░░░░░░░</span> <span class="green">5%</span> <span class="overlay">│</span> <span class="overlay">5h:</span><span class="green">2%</span> <span class="overlay">(</span><span class="lavender">4.9h</span><span class="overlay">)</span></div>
-
-  </div>
-
-</div>
 
 </body>
 </html>
