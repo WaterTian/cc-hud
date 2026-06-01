@@ -134,28 +134,28 @@
       <div class="dot g"></div>
     </div>
     <div class="name"><span class="accent">cc-hud</span> &nbsp;·&nbsp; claude code statusline</div>
-    <div class="badge">v0.2.4</div>
+    <div class="badge">v0.4.0</div>
   </div>
 
-  <!-- Body: 4 scenarios framed as terminal session -->
+  <!-- Body: 4 scenarios — anthropic / deepseek / minimax / quick -->
   <div class="body">
 
-    <div class="line comment"># <span class="tag">idle</span> — fresh session, 1M context available</div>
-    <div class="line"><span class="overlay">[</span><span class="blue">Opus 4.7</span><span class="overlay">]</span> <span class="green">▊</span><span class="surface">░░░░░░░░░</span> <span class="green">7%</span> <span class="overlay">(1M)</span> <span class="overlay">│</span> <span class="overlay">5h:</span><span class="green">22%</span> <span class="overlay">(</span><span class="flamingo">1.4h</span><span class="overlay">)</span> <span class="overlay">│</span> <span class="overlay">7d:</span><span class="green">3%</span> <span class="overlay">(</span><span class="sapphire">6.8d</span><span class="overlay">)</span></div>
+    <div class="line comment"># <span class="tag">anthropic</span> — Opus 4.7 1M, subagent running, rate limits</div>
+    <div class="line"><span class="overlay">[</span><span class="blue">Opus 4.7</span><span class="overlay">]</span> <span class="green">▊</span><span class="surface">░░░░░░░░░</span> <span class="green">7%</span> <span class="overlay">(1M)</span> <span class="overlay">│</span> <span class="teal">◐</span> <span class="text">explore</span> <span class="overlay">[haiku]</span> <span class="overlay">│</span> <span class="overlay">5h:</span><span class="green">22%</span> <span class="overlay">(</span><span class="flamingo">1.4h</span><span class="overlay">)</span> <span class="overlay">│</span> <span class="overlay">7d:</span><span class="green">3%</span> <span class="overlay">(</span><span class="sapphire">6.8d</span><span class="overlay">)</span></div>
 
     <div class="spacer"></div>
 
-    <div class="line comment"># <span class="tag">working</span> — subagent in flight, rate limit warming up</div>
-    <div class="line"><span class="overlay">[</span><span class="blue">Opus 4.7</span><span class="overlay">]</span> <span class="peach">███████▌</span><span class="surface">░░</span> <span class="peach">75%</span> <span class="overlay">(1M)</span> <span class="overlay">│</span> <span class="teal">◐</span> <span class="text">explore</span> <span class="overlay">[haiku]</span> <span class="overlay">│</span> <span class="overlay">5h:</span><span class="red">88%</span> <span class="overlay">(</span><span class="flamingo">35m</span><span class="overlay">)</span> <span class="overlay">│</span> <span class="overlay">7d:</span><span class="green">42%</span> <span class="overlay">(</span><span class="sapphire">3.2d</span><span class="overlay">)</span></div>
+    <div class="line comment"># <span class="tag">deepseek</span> — DeepSeek V4 Pro 1M, auto balance ¥13.44</div>
+    <div class="line"><span class="overlay">[</span><span class="blue">DeepSeek V4 Pro</span><span class="overlay">]</span> <span class="green">██</span><span class="surface">░░░░░░░░</span> <span class="green">20%</span> <span class="overlay">(1M)</span> <span class="overlay">│</span> <span class="overlay">5h:</span><span class="green">30%</span> <span class="overlay">(</span><span class="lavender">3.2h</span><span class="overlay">)</span> <span class="overlay">│</span> <span class="teal">¥13.44</span></div>
 
     <div class="spacer"></div>
 
-    <div class="line comment"># <span class="tag">chat</span> — standard Sonnet session, context filling up</div>
-    <div class="line"><span class="overlay">[</span><span class="blue">Sonnet 4.6</span><span class="overlay">]</span> <span class="peach">████████▎</span><span class="surface">░</span> <span class="peach">82%</span> <span class="overlay">│</span> <span class="overlay">5h:</span><span class="peach">75%</span> <span class="overlay">(</span><span class="lavender">4.2h</span><span class="overlay">)</span> <span class="overlay">│</span> <span class="overlay">7d:</span><span class="green">28%</span> <span class="overlay">(</span><span class="sapphire">5.1d</span><span class="overlay">)</span></div>
+    <div class="line comment"># <span class="tag">minimax</span> — MiniMax M3, Token Plan quota 5h＋weekly</div>
+    <div class="line"><span class="overlay">[</span><span class="blue">MiniMax M3</span><span class="overlay">]</span> <span class="green">█▎</span><span class="surface">░░░░░░░░</span> <span class="green">17%</span> <span class="overlay">│</span> <span class="overlay">5h:</span><span class="green">17%</span> <span class="overlay">(</span><span class="flamingo">1.1h</span><span class="overlay">)</span> <span class="overlay">│</span> <span class="overlay">7d:</span><span class="green">2%</span> <span class="overlay">(</span><span class="sapphire">6.4d</span><span class="overlay">)</span></div>
 
     <div class="spacer"></div>
 
-    <div class="line comment"># <span class="tag">quick</span> — Haiku fast path</div>
+    <div class="line comment"># <span class="tag">quick</span> — Haiku 4.5 fast path, minimal overhead</div>
     <div class="line"><span class="overlay">[</span><span class="blue">Haiku 4.5</span><span class="overlay">]</span> <span class="green">▌</span><span class="surface">░░░░░░░░░</span> <span class="green">5%</span> <span class="overlay">│</span> <span class="overlay">5h:</span><span class="green">2%</span> <span class="overlay">(</span><span class="lavender">4.9h</span><span class="overlay">)</span></div>
 
   </div>
