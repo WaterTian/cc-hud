@@ -32,25 +32,18 @@ function writeCache(payload) {
     }
     catch { /* best effort */ }
 }
-// Token Plan Plus: text/image/voice/music share a single quota window
-// (each model_remains entry shows the same plan total, usage is per-model).
-// Aggregate by summing usage across all models and using max total as plan quota.
+// API populates *_remaining_percent with the real value; *_usage_count is 0.
+// Pick the active entry (status 1) and compute used% as 100 - remaining%.
 function aggregatePlan(remains) {
     if (remains.length === 0)
         return null;
-    const sumUsage = remains.reduce((a, m) => a + m.current_interval_usage_count, 0);
-    const sumWeekly = remains.reduce((a, m) => a + m.current_weekly_usage_count, 0);
-    const total5h = Math.max(...remains.map(m => m.current_interval_total_count));
-    const total7d = Math.max(...remains.map(m => m.current_weekly_total_count));
-    const minRemains = Math.min(...remains.map(m => m.remains_time));
-    const minWeekly = Math.min(...remains.map(m => m.weekly_remains_time));
+    const active = remains.find(m => m.current_interval_status === 1) ?? remains[0];
     const now = Date.now();
-    const safePct = (u, t) => t > 0 ? Math.round((u / t) * 100) : 0;
     return {
-        fiveHourUsedPct: safePct(sumUsage, total5h),
-        fiveHourResetsAt: now + minRemains,
-        sevenDayUsedPct: safePct(sumWeekly, total7d),
-        sevenDayResetsAt: now + minWeekly,
+        fiveHourUsedPct: Math.max(0, 100 - active.current_interval_remaining_percent),
+        fiveHourResetsAt: now + active.remains_time,
+        sevenDayUsedPct: Math.max(0, 100 - active.current_weekly_remaining_percent),
+        sevenDayResetsAt: now + active.weekly_remains_time,
     };
 }
 async function fetchQuota(apiKey) {

@@ -122,17 +122,21 @@ describe('mmx quota', () => {
     });
 
     it('parses real-shape MiniMax response', async () => {
+      // ACTUAL API shape (per user curl 2026-06-01):
+      // - _usage_count / _total_count = 0 (always)
+      // - real values in _remaining_percent
+      // - status 1 = active, 3 = inactive
       const now = Date.now();
       nextResponse = new Response(JSON.stringify({
         model_remains: [{
-          model_name: 'MiniMax-M3',
+          model_name: 'general',
           start_time: now - 1000,
           end_time: now + 3900000,
           remains_time: 3900000,
-          current_interval_total_count: 5000,
-          current_interval_usage_count: 850,
-          current_weekly_total_count: 50000,
-          current_weekly_usage_count: 1000,
+          current_interval_remaining_percent: 83,
+          current_weekly_remaining_percent: 98,
+          current_interval_status: 1,
+          current_weekly_status: 1,
           weekly_start_time: now - 1000,
           weekly_end_time: now + 554400000,
           weekly_remains_time: 554400000,
@@ -141,78 +145,42 @@ describe('mmx quota', () => {
       const { getMmxQuota } = await importMmx();
       const result = await getMmxQuota();
       assert.ok(result);
-      assert.equal(result!.fiveHourUsedPct, 17);
-      assert.equal(result!.sevenDayUsedPct, 2);
+      assert.equal(result!.fiveHourUsedPct, 17);  // 100 - 83
+      assert.equal(result!.sevenDayUsedPct, 2);   // 100 - 98
       assert.ok(Math.abs(result!.fiveHourResetsAt - (now + 3900000)) < 1000);
       assert.ok(Math.abs(result!.sevenDayResetsAt - (now + 554400000)) < 1000);
     });
 
-    it('aggregates usage across all models (Token Plan Plus shared quota)', async () => {
-      // Plan total = 100 (shared across text/image/voice/music per Plus spec)
-      // M3 user is on has 0, but other models have usage
+    it('picks active entry (status=1) over inactive (status=3)', async () => {
       nextResponse = new Response(JSON.stringify({
         model_remains: [
-          { model_name: 'MiniMax-M3', remains_time: 1000, current_interval_total_count: 100, current_interval_usage_count: 0, weekly_remains_time: 2000, current_weekly_total_count: 100, current_weekly_usage_count: 0 },
-          { model_name: 'MiniMax-Text-01', remains_time: 1000, current_interval_total_count: 100, current_interval_usage_count: 8, weekly_remains_time: 2000, current_weekly_total_count: 100, current_weekly_usage_count: 2 },
-          { model_name: 'MiniMax-Image', remains_time: 1000, current_interval_total_count: 100, current_interval_usage_count: 0, weekly_remains_time: 2000, current_weekly_total_count: 100, current_weekly_usage_count: 0 },
-          { model_name: 'MiniMax-Voice', remains_time: 1000, current_interval_total_count: 100, current_interval_usage_count: 0, weekly_remains_time: 2000, current_weekly_total_count: 100, current_weekly_usage_count: 0 },
-          { model_name: 'MiniMax-Music', remains_time: 1000, current_interval_total_count: 100, current_interval_usage_count: 0, weekly_remains_time: 2000, current_weekly_total_count: 100, current_weekly_usage_count: 0 },
+          // Inactive (e.g. video, no quota) — should be ignored
+          { model_name: 'video', remains_time: 27000000, current_interval_remaining_percent: 100, current_weekly_remaining_percent: 100, current_interval_status: 3, current_weekly_status: 3, weekly_remains_time: 545600000 },
+          // Active (general, has real usage)
+          { model_name: 'general', remains_time: 12800000, current_interval_remaining_percent: 74, current_weekly_remaining_percent: 94, current_interval_status: 1, current_weekly_status: 1, weekly_remains_time: 545600000 },
         ],
       }));
       const { getMmxQuota } = await importMmx();
       const result = await getMmxQuota();
-      // sum 5h = 0+8+0+0+0 = 8, max total = 100 → 8%
-      assert.equal(result!.fiveHourUsedPct, 8);
-      // sum 7d = 0+2+0+0+0 = 2, max total = 100 → 2%
-      assert.equal(result!.sevenDayUsedPct, 2);
+      // Should pick 'general': 100-74=26%, 100-94=6%
+      assert.equal(result!.fiveHourUsedPct, 26);
+      assert.equal(result!.sevenDayUsedPct, 6);
     });
 
-    it('aggregates from any model.id input (no model selection)', async () => {
-      // Old code: pickModel would return the M3 entry (0%), wrong
-      // New code: aggregatePlan ignores modelName, sums all
-      nextResponse = new Response(JSON.stringify({
-        model_remains: [
-          { model_name: 'MiniMax-M3', remains_time: 1000, current_interval_total_count: 100, current_interval_usage_count: 0, weekly_remains_time: 2000, current_weekly_total_count: 100, current_weekly_usage_count: 0 },
-          { model_name: 'MiniMax-Text-01', remains_time: 1000, current_interval_total_count: 100, current_interval_usage_count: 8, weekly_remains_time: 2000, current_weekly_total_count: 100, current_weekly_usage_count: 2 },
-        ],
-      }));
-      const { getMmxQuota } = await importMmx();
-      // Caller previously passed modelName; new API has no arg
-      const result = await getMmxQuota();
-      assert.equal(result!.fiveHourUsedPct, 8);
-    });
-
-    it('single model — aggregation matches per-model (no regression)', async () => {
+    it('falls back to first entry when no status=1', async () => {
       nextResponse = new Response(JSON.stringify({
         model_remains: [{
-          model_name: 'MiniMax-M3',
+          model_name: 'a',
           remains_time: 1000,
-          current_interval_total_count: 100,
-          current_interval_usage_count: 17,
+          current_interval_remaining_percent: 50,
+          current_weekly_remaining_percent: 60,
           weekly_remains_time: 2000,
-          current_weekly_total_count: 200,
-          current_weekly_usage_count: 8,
         }],
       }));
       const { getMmxQuota } = await importMmx();
       const result = await getMmxQuota();
-      assert.equal(result!.fiveHourUsedPct, 17);
-      assert.equal(result!.sevenDayUsedPct, 4);
-    });
-
-    it('uses min reset time across models (plan-level window)', async () => {
-      nextResponse = new Response(JSON.stringify({
-        model_remains: [
-          { model_name: 'a', remains_time: 5000, current_interval_total_count: 100, current_interval_usage_count: 1, weekly_remains_time: 8000, current_weekly_total_count: 100, current_weekly_usage_count: 1 },
-          { model_name: 'b', remains_time: 1000, current_interval_total_count: 100, current_interval_usage_count: 2, weekly_remains_time: 2000, current_weekly_total_count: 100, current_weekly_usage_count: 2 },
-          { model_name: 'c', remains_time: 3000, current_interval_total_count: 100, current_interval_usage_count: 3, weekly_remains_time: 4000, current_weekly_total_count: 100, current_weekly_usage_count: 3 },
-        ],
-      }));
-      const { getMmxQuota } = await importMmx();
-      const result = await getMmxQuota();
-      // Reset time should be the earliest (1000ms, 2000ms — model b)
-      assert.ok(Math.abs(result!.fiveHourResetsAt - (Date.now() + 1000)) < 100);
-      assert.ok(Math.abs(result!.sevenDayResetsAt - (Date.now() + 2000)) < 100);
+      assert.equal(result!.fiveHourUsedPct, 50);
+      assert.equal(result!.sevenDayUsedPct, 40);
     });
 
     it('returns null for empty model_remains', async () => {
@@ -221,16 +189,14 @@ describe('mmx quota', () => {
       assert.equal(await getMmxQuota(), null);
     });
 
-    it('handles total_count = 0 safely (no NaN)', async () => {
+    it('handles remaining_percent = 100 (fully unused) safely', async () => {
       nextResponse = new Response(JSON.stringify({
         model_remains: [{
-          model_name: 'MiniMax-M3',
+          model_name: 'general',
           remains_time: 1000,
-          current_interval_total_count: 0,
-          current_interval_usage_count: 0,
+          current_interval_remaining_percent: 100,
+          current_weekly_remaining_percent: 100,
           weekly_remains_time: 2000,
-          current_weekly_total_count: 0,
-          current_weekly_usage_count: 0,
         }],
       }));
       const { getMmxQuota } = await importMmx();
@@ -284,13 +250,11 @@ describe('mmx quota', () => {
     it('caches successful response for 5 minutes', async () => {
       nextResponse = new Response(JSON.stringify({
         model_remains: [{
-          model_name: 'MiniMax-M3',
+          model_name: 'general',
           remains_time: 1000,
-          current_interval_total_count: 100,
-          current_interval_usage_count: 25,
+          current_interval_remaining_percent: 75,
+          current_weekly_remaining_percent: 75,
           weekly_remains_time: 2000,
-          current_weekly_total_count: 200,
-          current_weekly_usage_count: 50,
         }],
       }));
       const { getMmxQuota } = await importMmx();
@@ -304,13 +268,11 @@ describe('mmx quota', () => {
       // First call: succeed → write cache
       nextResponse = new Response(JSON.stringify({
         model_remains: [{
-          model_name: 'MiniMax-M3',
+          model_name: 'general',
           remains_time: 1000,
-          current_interval_total_count: 100,
-          current_interval_usage_count: 25,
+          current_interval_remaining_percent: 75,
+          current_weekly_remaining_percent: 75,
           weekly_remains_time: 2000,
-          current_weekly_total_count: 200,
-          current_weekly_usage_count: 50,
         }],
       }));
       const { getMmxQuota } = await importMmx();

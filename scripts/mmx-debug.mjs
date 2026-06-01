@@ -46,38 +46,29 @@ if (remains.length === 0) {
 }
 
 // Mirror src/mmx.ts aggregatePlan logic
+// API populates *_remaining_percent with the real value; *_usage_count is 0.
 function aggregatePlan(remains) {
   if (remains.length === 0) return null;
-  const sumUsage = remains.reduce((a, m) => a + m.current_interval_usage_count, 0);
-  const sumWeekly = remains.reduce((a, m) => a + m.current_weekly_usage_count, 0);
-  const total5h = Math.max(...remains.map(m => m.current_interval_total_count));
-  const total7d = Math.max(...remains.map(m => m.current_weekly_total_count));
-  const minRemains = Math.min(...remains.map(m => m.remains_time));
-  const minWeekly = Math.min(...remains.map(m => m.weekly_remains_time));
+  const active = remains.find(m => m.current_interval_status === 1) ?? remains[0];
   const now = Date.now();
-  const safePct = (u, t) => t > 0 ? Math.round((u / t) * 100) : 0;
   return {
-    fiveHourUsedPct: safePct(sumUsage, total5h),
-    fiveHourResetsAt: now + minRemains,
-    sevenDayUsedPct: safePct(sumWeekly, total7d),
-    sevenDayResetsAt: now + minWeekly,
+    fiveHourUsedPct: Math.max(0, 100 - active.current_interval_remaining_percent),
+    fiveHourResetsAt: now + active.remains_time,
+    sevenDayUsedPct: Math.max(0, 100 - active.current_weekly_remaining_percent),
+    sevenDayResetsAt: now + active.weekly_remains_time,
   };
 }
 
 // 打印每条记录的概要
 console.log('每条记录:');
 remains.forEach((m, i) => {
-  const fiveHrPct = m.current_interval_total_count > 0
-    ? Math.round((m.current_interval_usage_count / m.current_interval_total_count) * 100)
-    : 0;
-  const weeklyPct = m.current_weekly_total_count > 0
-    ? Math.round((m.current_weekly_usage_count / m.current_weekly_total_count) * 100)
-    : 0;
+  const status = m.current_interval_status;
+  const active = status === 1 ? '✓ active' : '○ inactive';
   const fiveHrRemH = (m.remains_time / 3600000).toFixed(1);
   const weeklyRemD = (m.weekly_remains_time / 86400000).toFixed(1);
-  console.log(`  [${i}] ${m.model_name}`);
-  console.log(`      5h:  ${fiveHrPct}%  (${m.current_interval_usage_count}/${m.current_interval_total_count}, ${fiveHrRemH}h left)`);
-  console.log(`      7d:  ${weeklyPct}%  (${m.current_weekly_usage_count}/${m.current_weekly_total_count}, ${weeklyRemD}d left)`);
+  console.log(`  [${i}] ${m.model_name}  (${active})`);
+  console.log(`      5h remaining: ${m.current_interval_remaining_percent}%  → used: ${100 - m.current_interval_remaining_percent}%  (${fiveHrRemH}h left)`);
+  console.log(`      7d remaining: ${m.current_weekly_remaining_percent}%  → used: ${100 - m.current_weekly_remaining_percent}%  (${weeklyRemD}d left)`);
 });
 
 const q = aggregatePlan(remains);
@@ -92,8 +83,8 @@ const weeklyRemD = ((q.sevenDayResetsAt - Date.now()) / 86400000).toFixed(1);
 console.log('\n┌─ cc-hud aggregatePlan 输出 (Token Plan Plus) ──┐');
 console.log(`│  5h: ${q.fiveHourUsedPct}%  (${fiveHrRemH}h until reset)`);
 console.log(`│  7d: ${q.sevenDayUsedPct}%  (${weeklyRemD}d until reset)`);
-console.log('│  算法: sum(usage) / max(total)');
-console.log('│  (text/image/voice/music 共享同一 plan quota)');
+console.log('│  算法: pick status=1 entry, used% = 100 - remaining_percent');
+console.log('│  (general = active plan quota, video/etc = inactive)');
 console.log('└────────────────────────────────────────────────┘\n');
 
 console.log('💡 跟你的 dashboard 对一下:');
