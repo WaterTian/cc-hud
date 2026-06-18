@@ -70,4 +70,32 @@ describe('shortModelName', () => {
   it('returns family only when MiniMax id has no sub-model', () => {
     assert.deepEqual(shortModelName(undefined, 'MiniMax'), { name: 'MiniMax', variant: null });
   });
+
+  it('beautifies GLM-5.2 model id', () => {
+    assert.deepEqual(shortModelName(undefined, 'glm-5.2'), { name: 'GLM 5.2', variant: null });
+  });
+
+  it('extracts GLM 1M variant suffix', () => {
+    assert.deepEqual(shortModelName(undefined, 'glm-5.2[1m]'), { name: 'GLM 5.2', variant: '1M' });
+  });
+
+  it('beautifies GLM-5-Turbo model id', () => {
+    assert.deepEqual(shortModelName(undefined, 'glm-5-turbo'), { name: 'GLM 5 Turbo', variant: null });
+  });
+
+  it('beautifies GLM-4.7 model id', () => {
+    assert.deepEqual(shortModelName(undefined, 'glm-4.7'), { name: 'GLM 4.7', variant: null });
+  });
+
+  it('beautifies GLM-4.5-Air model id', () => {
+    assert.deepEqual(shortModelName(undefined, 'glm-4.5-air'), { name: 'GLM 4.5 Air', variant: null });
+  });
+
+  it('beautifies GLM-4 legacy id', () => {
+    assert.deepEqual(shortModelName(undefined, 'glm-4'), { name: 'GLM 4', variant: null });
+  });
+
+  it('beautifies legacy ChatGLM model ids', () => {
+    assert.deepEqual(shortModelName(undefined, 'chatglm_turbo'), { name: 'ChatGLM Turbo', variant: null });
+  });
 });

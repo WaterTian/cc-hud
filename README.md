@@ -214,6 +214,20 @@ Works with `mmcode` or any launcher that sets `ANTHROPIC_BASE_URL` and `ANTHROPI
 
 <br/>
 
+## Balance Display (GLM)
+
+When using **GLM** as the backend (`ANTHROPIC_BASE_URL` set to `https://open.bigmodel.cn/api/anthropic` or `https://api.z.ai/api/anthropic`), cc-hud **automatically** shows your account balance — **zero configuration required**.
+
+```
+[GLM 5.2] ████▏░░░░░ 41% (1M) │ ¥88.50
+```
+
+Balance is cached locally for 5 minutes. On cache miss, cc-hud fetches the latest balance from GLM's account API. Works with `glmcode`, `ZCode`, or any launcher that sets `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN`.
+
+Model names are beautified automatically: `glm-5.2` → `GLM 5.2`, `glm-5.2[1m]` → `GLM 5.2 (1M)`, `glm-5-turbo` → `GLM 5 Turbo`, `glm-4.5-air` → `GLM 4.5 Air`.
+
+<br/>
+
 ## Development
 
 ```bash

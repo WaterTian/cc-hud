@@ -4,6 +4,7 @@ import { render } from './render.js';
 import { shortModelName } from './model.js';
 import { getExtra } from './balance.js';
 import { getMmxQuota } from './mmx.js';
+import { getGlmBalance } from './glm.js';
 import { readFileSync } from 'node:fs';
 // Hard timeout — never block Claude Code
 const TIMEOUT_MS = 2000;
@@ -32,8 +33,8 @@ async function main() {
         return ts < 1e12 ? ts * 1000 : ts;
     };
     const modelName = shortModelName(data.model?.display_name, data.model?.id);
-    // Extra segment: explicit CC_HUD_EXTRA_FILE > auto DeepSeek balance detection
-    const extra = readExtraFile() ?? await getExtra();
+    // Extra segment: explicit CC_HUD_EXTRA_FILE > DeepSeek balance > GLM balance
+    const extra = readExtraFile() ?? (await getExtra()) ?? (await getGlmBalance());
     // MiniMax Token Plan quota — no-op for Claude/DeepSeek (returns null)
     const mmQuota = await getMmxQuota();
     const renderData = {

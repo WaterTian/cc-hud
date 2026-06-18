@@ -21,6 +21,13 @@ export function shortModelName(displayName?: string, id?: string): ModelName {
       return { name: `DeepSeek ${v}`, variant: dm[2] ? dm[2].toUpperCase() : null };
     }
 
+    const glm = id.match(/^(glm|chatglm)[-_]([\w.]+(?:-\w+)?)(?:\[(\w+)\])?$/i);
+    if (glm) {
+      const prefix = glm[1].toLowerCase() === 'chatglm' ? 'ChatGLM' : 'GLM';
+      const model = glm[2].split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+      return { name: `${prefix} ${model}`, variant: glm[3] ? glm[3].toUpperCase() : null };
+    }
+
     const mm = id.match(/^(MiniMax|abab)(?:-([\w][\w.-]*))?(?:\[(\w+)\])?$/);
     if (mm) {
       const family = mm[1] === 'abab' ? 'ABAB' : 'MiniMax';

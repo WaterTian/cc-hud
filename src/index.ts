@@ -4,6 +4,7 @@ import { render } from './render.js';
 import { shortModelName } from './model.js';
 import { getExtra } from './balance.js';
 import { getMmxQuota } from './mmx.js';
+import { getGlmBalance } from './glm.js';
 import { readFileSync } from 'node:fs';
 import type { RenderData } from './types.js';
 
@@ -38,8 +39,8 @@ async function main(): Promise<void> {
 
   const modelName = shortModelName(data.model?.display_name, data.model?.id);
 
-  // Extra segment: explicit CC_HUD_EXTRA_FILE > auto DeepSeek balance detection
-  const extra = readExtraFile() ?? await getExtra();
+  // Extra segment: explicit CC_HUD_EXTRA_FILE > DeepSeek balance > GLM balance
+  const extra = readExtraFile() ?? (await getExtra()) ?? (await getGlmBalance());
 
   // MiniMax Token Plan quota — no-op for Claude/DeepSeek (returns null)
   const mmQuota = await getMmxQuota();
