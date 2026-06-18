@@ -118,8 +118,13 @@ Inside Claude Code:
 
 ```
 /plugin marketplace update cc-hud
+/cc-hud:setup
 /reload-plugins
 ```
+
+> [!IMPORTANT]
+> Marketplace updates install new versions but do **not** rewrite the `statusLine` config.
+> Re-run `/cc-hud:setup` after each upgrade to point the path to the latest version.
 
 <details>
 <summary><b>Via npm (manual)</b></summary>
