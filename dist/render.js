@@ -28,6 +28,11 @@ function color(percent) {
     return RED;
 }
 function progressBar(percent) {
+    // null = current_usage not yet populated (start of session or just after /compact)
+    // — render an empty track + dim em-dash so it doesn't look like context reset.
+    if (percent === null) {
+        return `${SURFACE}${TRACK_CHAR.repeat(BAR_WIDTH)}${RESET} ${OVERLAY}—%${RESET}`;
+    }
     const clamped = Math.max(0, Math.min(100, percent));
     const total = (clamped / 100) * BAR_WIDTH;
     const full = Math.floor(total);

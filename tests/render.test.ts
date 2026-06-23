@@ -176,4 +176,15 @@ describe('render', () => {
     const out = strip(render(makeData({ model: 'DeepSeek V4 Pro' })));
     assert.match(out, /\[DeepSeek V4 Pro\]/);
   });
+
+  it('shows em-dash when contextPercent is null (no current_usage yet)', () => {
+    const out = strip(render(makeData({ contextPercent: null })));
+    assert.match(out, /—%/);
+    assert.ok(!out.includes('0%'));
+  });
+
+  it('null contextPercent renders an empty track, not a filled bar', () => {
+    const raw = render(makeData({ contextPercent: null }));
+    assert.ok(!raw.includes('█'));
+  });
 });

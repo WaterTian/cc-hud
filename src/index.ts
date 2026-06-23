@@ -29,7 +29,14 @@ async function main(): Promise<void> {
   // Parse transcript in parallel with render prep — no dependency
   const agentsPromise = parseAgents(data.transcript_path);
 
-  const contextPercent = data.context_window?.used_percentage ?? 0;
+  // current_usage is null before the first API call, and again after /compact
+  // until the next API call repopulates it. In those windows show "—" instead
+  // of collapsing to 0%, which would look like the context just emptied.
+  const cw = data.context_window;
+  const usageUnavailable = cw?.current_usage === null || cw?.used_percentage == null;
+  const contextPercent: number | null = usageUnavailable
+    ? null
+    : Math.round(cw!.used_percentage as number);
   const agents = await agentsPromise;
 
   const toMs = (ts: number | null | undefined): number | null => {
@@ -48,7 +55,7 @@ async function main(): Promise<void> {
   const renderData: RenderData = {
     model: modelName.name,
     modelVariant: modelName.variant,
-    contextPercent: Math.round(contextPercent),
+    contextPercent,
     agents,
     fiveHourPercent: data.rate_limits?.five_hour?.used_percentage ?? mmQuota?.fiveHourUsedPct ?? null,
     sevenDayPercent: data.rate_limits?.seven_day?.used_percentage ?? mmQuota?.sevenDayUsedPct ?? null,
