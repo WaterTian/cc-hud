@@ -208,9 +208,35 @@ Example output:
 
 Works with `dscode` / `mmcode` / `glmcode` / `ZCode` or any launcher that exports `ANTHROPIC_BASE_URL` + `ANTHROPIC_AUTH_TOKEN`.
 
-### Other backends
+### Other backends / custom extra segment
 
-Set the `CC_HUD_EXTRA_FILE` env var to any file whose first line is the text to display. See `scripts/ds-balance-cache.sh` for a reference cache implementation.
+For backends not listed above, or to display custom text, set the `CC_HUD_EXTRA_FILE` environment variable to point at a file whose first line is the text to display. The file is read synchronously on each HUD tick — keep it cheap.
+
+```json
+// ~/.claude/settings.json
+{
+  "env": {
+    "CC_HUD_EXTRA_FILE": "C:/Users/yourname/.claude/hud/extra.txt"
+  }
+}
+```
+
+> [!IMPORTANT]
+> **Windows users:** Always use **forward slashes** (`C:/Users/...`) or **escaped backslashes** (`C:\\Users\\...`) in the path. Raw backslashes like `C:\Users\...` cause Node.js `\0` null-byte truncation and the file will silently not be read.
+
+The extra segment appears on the right side of the status line after the context bar:
+
+```
+[Sonnet 4.6] ██░░░░░░░░ 20% (1M) │ 滚动7%(1.7h) | 每周25%(2.8d) | 月98%(6.9d)
+```
+
+**Reference implementations:**
+
+| Script | Purpose |
+| --- | --- |
+| [`scripts/ds-balance-cache.sh`](scripts/ds-balance-cache.sh) | Query DeepSeek balance, cache to `CC_HUD_EXTRA_FILE` target |
+
+See `scripts/ds-balance-cache.sh` for a full bash-based cache implementation that pairs with this env var.
 
 <br/>
 
