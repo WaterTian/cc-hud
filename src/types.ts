@@ -37,4 +37,8 @@ export interface RenderData {
   fiveHourResetsAt: number | null;
   sevenDayResetsAt: number | null;
   extra: string | null;
+  /** OpenCode / external: monthly usage percent (0–100 or null) */
+  monthlyPercent: number | null;
+  /** OpenCode / external: monthly quota reset timestamp (ms) or null */
+  monthlyResetsAt: number | null;
 }

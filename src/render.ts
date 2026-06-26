@@ -105,15 +105,14 @@ export function render(data: RenderData): string {
   const agentStr = agentSegment(data.agents);
   if (agentStr) segments.push(agentStr);
 
-  // Rate limits
+  // Rate limits & quotas (up to three segments: 5h/滚动, 7d/每周, 月)
   const r5 = rateSegment('5h', data.fiveHourPercent, data.fiveHourResetsAt);
   const r7 = rateSegment('7d', data.sevenDayPercent, data.sevenDayResetsAt);
-  if (r5 && r7) {
-    segments.push(`${r5} ${OVERLAY}│${RESET} ${r7}`);
-  } else if (r5) {
-    segments.push(r5);
-  } else if (r7) {
-    segments.push(r7);
+  const rm = rateSegment('月', data.monthlyPercent, data.monthlyResetsAt);
+
+  const rateParts = [r5, r7, rm].filter((s): s is string => s !== null);
+  if (rateParts.length > 0) {
+    segments.push(rateParts.join(` ${OVERLAY}│${RESET} `));
   }
 
   // Extra (generic pluggable segment, e.g. balance for non-Anthropic backends)

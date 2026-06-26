@@ -5,11 +5,12 @@ import { shortModelName } from './model.js';
 import { getExtra } from './balance.js';
 import { getMmxQuota } from './mmx.js';
 import { getGlmBalance } from './glm.js';
+import { getOpenCodeQuota } from './opencode.js';
 import { readFileSync } from 'node:fs';
 import type { RenderData } from './types.js';
 
 // Hard timeout — never block Claude Code
-const TIMEOUT_MS = 2000;
+const TIMEOUT_MS = 6000;
 setTimeout(() => process.exit(0), TIMEOUT_MS).unref();
 
 function readExtraFile(): string | null {
@@ -46,22 +47,32 @@ async function main(): Promise<void> {
 
   const modelName = shortModelName(data.model?.display_name, data.model?.id);
 
-  // Extra segment: explicit CC_HUD_EXTRA_FILE > DeepSeek balance > GLM balance
-  const extra = readExtraFile() ?? (await getExtra()) ?? (await getGlmBalance());
-
-  // MiniMax Token Plan quota — no-op for Claude/DeepSeek (returns null)
-  const mmQuota = await getMmxQuota();
+  // Fetch from various backend-specific sources in parallel —
+  // each module returns null when it doesn't apply (fast path).
+  const [ocQuota, mmQuota, extra] = await Promise.all([
+    getOpenCodeQuota(),          // OpenCode Go subscription — fast cache path
+    getMmxQuota(),               // MiniMax Token Plan — fast cache path
+    // Extra segment: explicit CC_HUD_EXTRA_FILE > DeepSeek balance > GLM balance
+    (async () => readExtraFile() ?? (await getExtra()) ?? (await getGlmBalance()))(),
+  ]);
 
   const renderData: RenderData = {
     model: modelName.name,
     modelVariant: modelName.variant,
     contextPercent,
     agents,
-    fiveHourPercent: data.rate_limits?.five_hour?.used_percentage ?? mmQuota?.fiveHourUsedPct ?? null,
-    sevenDayPercent: data.rate_limits?.seven_day?.used_percentage ?? mmQuota?.sevenDayUsedPct ?? null,
-    fiveHourResetsAt: toMs(data.rate_limits?.five_hour?.resets_at) ?? mmQuota?.fiveHourResetsAt ?? null,
-    sevenDayResetsAt: toMs(data.rate_limits?.seven_day?.resets_at) ?? mmQuota?.sevenDayResetsAt ?? null,
+    // Priority: built-in rate limits > OpenCode quota > MiniMax quota
+    fiveHourPercent: data.rate_limits?.five_hour?.used_percentage
+      ?? ocQuota?.rollingPercent ?? mmQuota?.fiveHourUsedPct ?? null,
+    sevenDayPercent: data.rate_limits?.seven_day?.used_percentage
+      ?? ocQuota?.weeklyPercent ?? mmQuota?.sevenDayUsedPct ?? null,
+    fiveHourResetsAt: toMs(data.rate_limits?.five_hour?.resets_at)
+      ?? ocQuota?.rollingResetsAt ?? mmQuota?.fiveHourResetsAt ?? null,
+    sevenDayResetsAt: toMs(data.rate_limits?.seven_day?.resets_at)
+      ?? ocQuota?.weeklyResetsAt ?? mmQuota?.sevenDayResetsAt ?? null,
     extra,
+    monthlyPercent: ocQuota?.monthlyPercent ?? null,
+    monthlyResetsAt: ocQuota?.monthlyResetsAt ?? null,
   };
 
   console.log(render(renderData));
