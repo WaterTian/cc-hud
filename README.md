@@ -55,9 +55,14 @@
 **Solution.** CC-HUD is a **crash-free alternative** — pure Node.js, zero deps, stateless per call, ~60ms render, 2s hard timeout. Designed to keep your status bar running without taking Claude Code down.
 
 > [!TIP]
-> **Windows users:** Use `npm i -g @anthropic-ai/claude-code` instead of the native installer to avoid Bun crashes entirely.
+> **Windows users:** the native installer's `claude.exe` embeds a Bun runtime — the very source of the `pas panic` crash. The npm build runs on your system Node.js and doesn't have the problem:
 >
-> **Windows 用户：** 建议用 `npm i -g @anthropic-ai/claude-code` 代替原生安装器，彻底规避 Bun 崩溃。
+> ```powershell
+> claude doctor                        # check which install you're on
+> npm i -g @anthropic-ai/claude-code   # switch to the npm build
+> ```
+>
+> **Windows 用户：** 原生安装器的 `claude.exe` 内嵌 Bun 运行时，正是 `pas panic` 崩溃的根源；npm 版跑在系统 Node.js 上，无此问题。用上面两条命令确认安装类型并切换。
 
 <br/>
 
