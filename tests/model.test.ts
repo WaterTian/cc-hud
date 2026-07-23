@@ -22,6 +22,12 @@ describe('shortModelName', () => {
     );
   });
 
+  it('parses single-version model ids (Claude 5 family)', () => {
+    assert.deepEqual(shortModelName(undefined, 'claude-fable-5'), { name: 'Fable 5', variant: null });
+    assert.deepEqual(shortModelName(undefined, 'claude-fable-5[1m]'), { name: 'Fable 5', variant: '1M' });
+    assert.deepEqual(shortModelName('Fable', 'claude-fable-5'), { name: 'Fable 5', variant: null });
+  });
+
   it('prefers id over display_name when both are given', () => {
     // Historical mismatch case: display_name lagged while id was correct
     assert.deepEqual(

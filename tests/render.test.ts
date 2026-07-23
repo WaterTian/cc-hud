@@ -16,6 +16,8 @@ function makeData(overrides: Partial<RenderData> = {}): RenderData {
     sevenDayPercent: null,
     fiveHourResetsAt: null,
     sevenDayResetsAt: null,
+    planTier: null,
+    topModel: null,
     extra: null,
     ...overrides,
   };
@@ -175,6 +177,59 @@ describe('render', () => {
   it('renders DeepSeek model name', () => {
     const out = strip(render(makeData({ model: 'DeepSeek V4 Pro' })));
     assert.match(out, /\[DeepSeek V4 Pro\]/);
+  });
+
+  it('shows plan tier inside model brackets', () => {
+    const out = strip(render(makeData({ planTier: 'Max5x' })));
+    assert.match(out, /\[Opus · Max5x\]/);
+  });
+
+  it('omits tier dot when planTier is null', () => {
+    const out = strip(render(makeData()));
+    assert.match(out, /\[Opus\]/);
+    assert.ok(!out.includes('·'));
+  });
+
+  it('shows top-model gauge after 7d', () => {
+    const out = strip(render(makeData({
+      fiveHourPercent: 1,
+      sevenDayPercent: 35,
+      topModel: { name: 'Fable', percent: 46, resetsAt: null },
+    })));
+    assert.match(out, /5h:1%.*│.*7d:35%.*│.*Fable:46%/);
+  });
+
+  it('shows top-model gauge alone when 5h/7d are null', () => {
+    const out = strip(render(makeData({
+      topModel: { name: 'Opus', percent: 80, resetsAt: null },
+    })));
+    assert.match(out, /Opus:80%/);
+  });
+
+  it('suppresses top-model countdown when it matches the 7d reset', () => {
+    const resetsAt = Date.now() + 2.5 * 86_400_000;
+    const out = strip(render(makeData({
+      sevenDayPercent: 35,
+      sevenDayResetsAt: resetsAt,
+      topModel: { name: 'Fable', percent: 46, resetsAt: resetsAt + 500 },
+    })));
+    assert.match(out, /7d:35% \(2\.5d\)/);
+    assert.match(out, /Fable:46%(?! \()/);
+  });
+
+  it('shows top-model countdown when it differs from the 7d reset', () => {
+    const now = Date.now();
+    const out = strip(render(makeData({
+      sevenDayPercent: 35,
+      sevenDayResetsAt: now + 2 * 86_400_000,
+      topModel: { name: 'Fable', percent: 46, resetsAt: now + 4 * 86_400_000 },
+    })));
+    assert.match(out, /Fable:46% \(4d\)/);
+  });
+
+  it('colors top-model gauge by usage threshold', () => {
+    const raw = render(makeData({ topModel: { name: 'Fable', percent: 90, resetsAt: null } }));
+    assert.match(raw, /\x1b\[38;5;211m/); // RED for 90%
   });
 
   it('shows em-dash when contextPercent is null (no current_usage yet)', () => {

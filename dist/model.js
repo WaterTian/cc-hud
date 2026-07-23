@@ -7,6 +7,15 @@ function tryParse(raw) {
             variant: cm[4] ? cm[4].toUpperCase() : null,
         };
     }
+    // Single-version ids (claude-fable-5) — no minor number to dot-join
+    const cs = raw.match(/^claude-(\w+)-(\d+)(?:\[(\w+)\])?$/);
+    if (cs) {
+        const family = `${cs[1][0].toUpperCase()}${cs[1].slice(1)}`;
+        return {
+            name: `${family} ${cs[2]}`,
+            variant: cs[3] ? cs[3].toUpperCase() : null,
+        };
+    }
     const dm = raw.match(/^deepseek-(v\d+(?:-\w+))(?:\[(\w+)\])?$/);
     if (dm) {
         const v = dm[1].replace(/^v/, 'V').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());

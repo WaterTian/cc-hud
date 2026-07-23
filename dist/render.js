@@ -91,26 +91,32 @@ function agentSegment(agents) {
     });
     return parts.join(' ');
 }
+// The top-model gauge usually resets together with the 7d window —
+// suppress its countdown then, so the same time isn't printed twice.
+function sameReset(a, b) {
+    return a != null && b != null && Math.abs(a - b) < 60_000;
+}
 export function render(data) {
     const segments = [];
     // Model + context bar (variant suffix lives here — it describes context capacity)
     const variant = data.modelVariant ? ` ${OVERLAY}(${data.modelVariant})${RESET}` : '';
-    segments.push(`${OVERLAY}[${RESET}${BLUE}${data.model}${RESET}${OVERLAY}]${RESET} ${progressBar(data.contextPercent)}${variant}`);
+    const tier = data.planTier ? ` ${OVERLAY}· ${data.planTier}${RESET}` : '';
+    segments.push(`${OVERLAY}[${RESET}${BLUE}${data.model}${RESET}${tier}${OVERLAY}]${RESET} ${progressBar(data.contextPercent)}${variant}`);
     // Agents (if any)
     const agentStr = agentSegment(data.agents);
     if (agentStr)
         segments.push(agentStr);
-    // Rate limits
-    const r5 = rateSegment('5h', data.fiveHourPercent, data.fiveHourResetsAt);
-    const r7 = rateSegment('7d', data.sevenDayPercent, data.sevenDayResetsAt);
-    if (r5 && r7) {
-        segments.push(`${r5} ${OVERLAY}│${RESET} ${r7}`);
-    }
-    else if (r5) {
-        segments.push(r5);
-    }
-    else if (r7) {
-        segments.push(r7);
+    // Rate limits: 5h │ 7d │ top-model weekly gauge
+    const rTop = data.topModel
+        ? rateSegment(data.topModel.name, data.topModel.percent, sameReset(data.topModel.resetsAt, data.sevenDayResetsAt) ? null : data.topModel.resetsAt)
+        : null;
+    const rates = [
+        rateSegment('5h', data.fiveHourPercent, data.fiveHourResetsAt),
+        rateSegment('7d', data.sevenDayPercent, data.sevenDayResetsAt),
+        rTop,
+    ].filter((s) => s !== null);
+    if (rates.length > 0) {
+        segments.push(rates.join(` ${OVERLAY}│${RESET} `));
     }
     // Extra (generic pluggable segment, e.g. balance for non-Anthropic backends)
     if (data.extra) {

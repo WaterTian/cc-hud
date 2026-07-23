@@ -26,11 +26,13 @@ src/
   transcript.ts             — 读 transcript JSONL 尾部 64KB，提取活跃 agent
   render.ts                 — 单行紧凑渲染（1/8 精度进度条 + ANSI 颜色）
   model.ts                  — 模型名美化（claude-opus-4-7[1m] → Opus 4.7 (1M)）
+  claude.ts                 — 官方套餐档位（~/.claude.json）+ 顶级模型周用量（OAuth usage API）
+  claude-refresh.ts         — 分离式刷新子进程入口（tick 内零网络，后台拉取写缓存）
   balance.ts / glm.ts / mmx.ts  — DeepSeek / GLM / MiniMax 余额或配额采集
   types.ts                  — 类型定义
 scripts/launcher.cjs        — 稳定路径 launcher（setup 复制到 ~/.claude/bin/cc-hud-launcher.cjs）
 dist/                       — 编译输出（提交到仓库）
-tests/*.test.ts(.cjs)       — node:test 单元测试（render / model / mmx / glm / launcher）
+tests/*.test.ts(.cjs)       — node:test 单元测试（render / model / mmx / glm / claude / launcher）
 ```
 
 ## 数据流
@@ -47,6 +49,7 @@ Claude Code → stdin JSON → cc-hud → stdout → 状态栏
 - **字符串预过滤** — 跳过不含 agent 数据的行，减少 ~90% JSON.parse
 - **2s 硬超时** — setTimeout + unref()，异常时强制退出不阻塞 Claude Code
 - **所有 IO try-catch** — 失败静默降级，不崩溃
+- **tick 内零网络（官方后端）** — claude.ts 只读缓存，网络请求全部由 detached 刷新子进程完成；OAuth usage 接口的 WAF 会 403 拦截 Node TLS 指纹，需 curl 回退（2026-07 实测）
 
 ## 环境
 

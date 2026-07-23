@@ -9,7 +9,7 @@
   Step 3: /reload-plugins
   Step 4: /cc-hud:setup  (idempotent; v0.5.0+ installs a launcher so future upgrades only need step 1 + step 3)
 
-  Keywords: claude-code plugin statusline status-bar hud monitoring context-window rate-limit reset-countdown agents windows crash-free zero-dependency catppuccin deepseek minimax glm token-plan
+  Keywords: claude-code plugin statusline status-bar hud monitoring context-window rate-limit reset-countdown agents windows crash-free zero-dependency catppuccin deepseek minimax glm token-plan plan-tier max pro opus-limit top-model weekly-gauge
 -->
 
 <p align="center">
@@ -168,6 +168,22 @@ Claude Code ──stdin JSON──→  ~/.claude/bin/cc-hud-launcher.cjs   ← s
   <td align="center" width="25%"><b>Upgrade-safe</b><br/><sub>Stable launcher (v0.5+)<br/>no re-setup on upgrade</sub></td>
 </tr>
 </table>
+
+<br/>
+
+## Plan Tier & Top-Model Gauge
+
+For official Anthropic subscribers (Pro / Max), cc-hud shows your **plan tier** next to the model name and the **top-tier-model weekly gauge** — the "Current week (Opus / Fable)" meter from `/usage` that the statusline JSON doesn't expose:
+
+```
+[Fable 5 · Max5x] █▊░░░░░░░░ 18% │ 5h:1% (4.5h) │ 7d:35% (4.1d) │ Fable:51%
+```
+
+- **Plan tier** is read locally from `~/.claude.json` — zero network.
+- **Top-model gauge** comes from the same OAuth usage endpoint the `/usage` panel reads. The OAuth token is read locally (`~/.claude/.credentials.json`, or the macOS Keychain), used only for this read-only call, and never stored, logged, or refreshed.
+- Fetches run in a **detached background refresher** — a statusline tick never waits on the network. Results are cached for 5 minutes.
+- Only activates on the official Anthropic backend with a subscription; API-key and third-party sessions skip it entirely.
+- Opt out anytime: set `CC_HUD_NO_REFRESH=1` to disable the background usage fetch (the locally-read plan tier stays).
 
 <br/>
 

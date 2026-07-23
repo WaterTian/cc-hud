@@ -27,6 +27,13 @@ export interface AgentEntry {
   status: 'running' | 'completed';
 }
 
+// Top-tier-model weekly gauge (the "Current week (Opus/Fable)" meter in /usage)
+export interface TopModelUsage {
+  name: string;
+  percent: number;
+  resetsAt: number | null;
+}
+
 export interface RenderData {
   model: string;
   modelVariant: string | null;
@@ -36,5 +43,7 @@ export interface RenderData {
   sevenDayPercent: number | null;
   fiveHourResetsAt: number | null;
   sevenDayResetsAt: number | null;
+  planTier: string | null;
+  topModel: TopModelUsage | null;
   extra: string | null;
 }

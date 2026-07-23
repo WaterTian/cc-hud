@@ -5,6 +5,7 @@ import { shortModelName } from './model.js';
 import { getExtra } from './balance.js';
 import { getMmxQuota } from './mmx.js';
 import { getGlmBalance } from './glm.js';
+import { getClaudePlan } from './claude.js';
 import { readFileSync } from 'node:fs';
 import type { RenderData } from './types.js';
 
@@ -29,6 +30,10 @@ async function main(): Promise<void> {
   // Parse transcript in parallel with render prep — no dependency
   const agentsPromise = parseAgents(data.transcript_path);
 
+  // Claude plan tier + top-model gauge — no-op for third-party backends,
+  // started early so a cache-miss fetch overlaps with transcript parsing
+  const planPromise = getClaudePlan(!!data.rate_limits);
+
   // current_usage is null before the first API call, and again after /compact
   // until the next API call repopulates it. In those windows show "—" instead
   // of collapsing to 0%, which would look like the context just emptied.
@@ -52,6 +57,8 @@ async function main(): Promise<void> {
   // MiniMax Token Plan quota — no-op for Claude/DeepSeek (returns null)
   const mmQuota = await getMmxQuota();
 
+  const plan = await planPromise;
+
   const renderData: RenderData = {
     model: modelName.name,
     modelVariant: modelName.variant,
@@ -61,6 +68,8 @@ async function main(): Promise<void> {
     sevenDayPercent: data.rate_limits?.seven_day?.used_percentage ?? mmQuota?.sevenDayUsedPct ?? null,
     fiveHourResetsAt: toMs(data.rate_limits?.five_hour?.resets_at) ?? mmQuota?.fiveHourResetsAt ?? null,
     sevenDayResetsAt: toMs(data.rate_limits?.seven_day?.resets_at) ?? mmQuota?.sevenDayResetsAt ?? null,
+    planTier: plan?.tier ?? null,
+    topModel: plan?.topModel ?? null,
     extra,
   };
 
