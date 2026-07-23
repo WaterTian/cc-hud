@@ -1,6 +1,6 @@
 <!--
   cc-hud — Claude Code statusline plugin
-  Shows: model name, context window usage (progress bar), active subagents, rate limits (5h/7d) with reset countdown
+  Shows: model name, plan tier (Pro/Max), context window usage (progress bar), active subagents, rate limits (5h/7d) with reset countdown, top-model weekly gauge (Opus/Fable)
   Pure Node.js, zero dependencies, crash-free on Windows (no Bun)
 
   ## Auto-install (for Claude Code AI agents)
@@ -9,7 +9,7 @@
   Step 3: /reload-plugins
   Step 4: /cc-hud:setup  (idempotent; v0.5.0+ installs a launcher so future upgrades only need step 1 + step 3)
 
-  Keywords: claude-code plugin statusline status-bar hud monitoring context-window rate-limit reset-countdown agents windows crash-free zero-dependency catppuccin deepseek minimax glm token-plan plan-tier max pro opus-limit top-model weekly-gauge
+  Keywords: claude-code plugin statusline status-bar hud monitoring context-window rate-limit reset-countdown agents windows crash-free zero-dependency catppuccin deepseek minimax glm token-plan plan-tier max pro fable opus-limit top-model weekly-gauge
 -->
 
 <p align="center">
@@ -23,11 +23,11 @@
 
 <p align="center">
   <strong>A compact, single-line statusline plugin for <a href="https://claude.ai/claude-code">Claude Code</a></strong><br/>
-  <sub>Crash-free, zero-dependency status bar — model · context · agents · rate limits · reset countdown</sub>
+  <sub>Crash-free, zero-dependency status bar — model · plan tier · context · agents · rate limits · top-model gauge</sub>
 </p>
 
 <p align="center">
-  <code>Model</code> &nbsp;&rarr;&nbsp; <code>Context</code> &nbsp;&rarr;&nbsp; <code>Agents</code> &nbsp;&rarr;&nbsp; <code>Rate Limits</code>
+  <code>Model · Plan</code> &nbsp;&rarr;&nbsp; <code>Context</code> &nbsp;&rarr;&nbsp; <code>Agents</code> &nbsp;&rarr;&nbsp; <code>Rate Limits</code> &nbsp;&rarr;&nbsp; <code>Top Model</code>
   <br/>
   <sub>everything you need, nothing you don't.</sub>
 </p>
@@ -37,7 +37,7 @@
   &nbsp;
   <a href="https://www.npmjs.com/package/cc-hud"><img src="https://img.shields.io/npm/dm/cc-hud?style=flat-square&color=cb3837" alt="npm downloads" /></a>
   &nbsp;
-  <a href="#install"><img src="https://img.shields.io/badge/install-3_commands-blueviolet?style=flat-square" alt="install" /></a>
+  <a href="#install"><img src="https://img.shields.io/badge/install-4_commands-blueviolet?style=flat-square" alt="install" /></a>
   &nbsp;
   <img src="https://img.shields.io/badge/dependencies-0-brightgreen?style=flat-square" alt="zero deps" />
   &nbsp;
@@ -65,11 +65,12 @@
 
 <table>
 <tr>
-  <td align="center" width="20%"><h3>█▌</h3><b>Context Bar</b><br/><sub>1/8-precision blocks<br/>80-level granularity</sub></td>
-  <td align="center" width="20%"><h3>◧</h3><b>Color</b><br/><sub><a href="https://github.com/catppuccin/catppuccin">Catppuccin Mocha</a><br/>dual-tone gradient</sub></td>
-  <td align="center" width="20%"><h3>◐</h3><b>Agents</b><br/><sub>Running subagents<br/>with type & model</sub></td>
-  <td align="center" width="20%"><h3>%</h3><b>Rate Limits</b><br/><sub>5h / 7d usage<br/>+ reset countdown</sub></td>
-  <td align="center" width="20%"><h3>0</h3><b>Dependencies</b><br/><sub>Zero. Node.js<br/>built-ins only</sub></td>
+  <td align="center" width="16%"><h3>█▌</h3><b>Context Bar</b><br/><sub>1/8-precision blocks<br/>80-level granularity</sub></td>
+  <td align="center" width="17%"><h3>★</h3><b>Plan & Top Model</b><br/><sub>Max5x tier badge<br/>Opus/Fable weekly gauge</sub></td>
+  <td align="center" width="17%"><h3>◐</h3><b>Agents</b><br/><sub>Running subagents<br/>with type & model</sub></td>
+  <td align="center" width="17%"><h3>%</h3><b>Rate Limits</b><br/><sub>5h / 7d usage<br/>+ reset countdown</sub></td>
+  <td align="center" width="17%"><h3>◧</h3><b>Color</b><br/><sub><a href="https://github.com/catppuccin/catppuccin">Catppuccin Mocha</a><br/>dual-tone gradient</sub></td>
+  <td align="center" width="16%"><h3>0</h3><b>Dependencies</b><br/><sub>Zero. Node.js<br/>built-ins only</sub></td>
 </tr>
 </table>
 
@@ -99,9 +100,7 @@ Inside Claude Code:
 ```
 
 > [!NOTE]
-> Since **v0.5.0**, `/cc-hud:setup` installs a small **launcher** at `~/.claude/bin/cc-hud-launcher.cjs` and points `statusLine.command` at it. The launcher resolves the currently installed cc-hud version on each tick, so plugin upgrades no longer require re-running `/cc-hud:setup`.
->
-> Upgrading from **≤0.4.x**? Re-run `/cc-hud:setup` **once** — it auto-detects the old version-pinned path and migrates it to the launcher.
+> The launcher resolves the currently installed cc-hud version on each tick, so upgrades need **no re-setup**. Upgrading from **≤0.4.x**? Re-run `/cc-hud:setup` **once** — it auto-detects the old version-pinned path and migrates it to the launcher.
 
 <details>
 <summary><b>Via npm (manual)</b></summary>
@@ -158,6 +157,7 @@ Claude Code ──stdin JSON──→  ~/.claude/bin/cc-hud-launcher.cjs   ← s
                               ▼
                              cc-hud dist/index.js  ──stdout──→ status bar
                               ↘ transcript JSONL (tail 64KB → active agents)
+                              ↘ claude-refresh.js (detached, v0.6+ → plan tier + top-model gauge, 5 min cache)
 ```
 
 <table>
@@ -189,7 +189,7 @@ For official Anthropic subscribers (Pro / Max), cc-hud shows your **plan tier** 
 
 ## Auto-detected Backends
 
-cc-hud detects your `ANTHROPIC_BASE_URL` and pulls **balance / quota** automatically — **zero configuration**, cached locally for 5 minutes. Model names are beautified along the way (`glm-5.2[1m]` → `GLM 5.2 (1M)`, `MiniMax-M3` → `MiniMax M3`, etc.).
+cc-hud detects your `ANTHROPIC_BASE_URL` and pulls **balance / quota** automatically — **zero configuration**, cached locally for 5 minutes. Model names are beautified along the way (`claude-fable-5` → `Fable 5`, `glm-5.2[1m]` → `GLM 5.2 (1M)`, `MiniMax-M3` → `MiniMax M3`, etc.).
 
 <table>
 <tr>
@@ -235,14 +235,14 @@ Set the `CC_HUD_EXTRA_FILE` env var to any file whose first line is the text to 
 ```bash
 npm install
 npm run build      # compile TypeScript → dist/
-npm test           # 95 tests (node:test)
+npm test           # 141 tests (node:test)
 ```
 
 Project layout:
 
 | Path | Purpose |
 | --- | --- |
-| `src/` | TypeScript source — entry, render, model normalize, DeepSeek / MiniMax / GLM pickers |
+| `src/` | TypeScript source — entry, render, model normalize, Claude plan / DeepSeek / MiniMax / GLM collectors, detached refresher |
 | `scripts/launcher.cjs` | Stable-path launcher (`/cc-hud:setup` copies it to `~/.claude/bin/`) |
 | `commands/setup.md` | `/cc-hud:setup` slash command |
 | `tests/` | `node:test` unit tests (TS + CJS) |
