@@ -14,8 +14,8 @@
 
 <p align="center">
   <picture>
-    <source srcset="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.svg" type="image/svg+xml" />
-    <img src="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.png" alt="cc-hud preview — model, context bar, agents, rate limits, balance" width="900" />
+    <source srcset="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.svg?v=0.6.0" type="image/svg+xml" />
+    <img src="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.png?v=0.6.0" alt="cc-hud preview — model, plan tier, context bar, agents, rate limits, top-model gauge, balance" width="900" />
   </picture>
 </p>
 
