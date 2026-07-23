@@ -31,3 +31,6 @@ docs/
 # Tools & Temp
 screenshots/
 drafts/
+
+# Skills CLI (local skill installs live in .claude/skills/, already ignored)
+skills-lock.json
