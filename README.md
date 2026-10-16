@@ -14,8 +14,8 @@
 
 <p align="center">
   <picture>
-    <source srcset="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.svg?v=0.8.0" type="image/svg+xml" />
-    <img src="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.png?v=0.8.0" alt="cc-hud preview — model, thinking depth, context bar, agents, rate limits, top-model gauge, balance" width="900" />
+    <source srcset="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.svg?v=0.9.0" type="image/svg+xml" />
+    <img src="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.png?v=0.9.0" alt="cc-hud preview — model, thinking depth, context bar, agents, rate limits, top-model gauge, balance" width="900" />
   </picture>
 </p>
 
@@ -164,13 +164,13 @@ Claude Code ──stdin JSON──→  ~/.claude/bin/cc-hud-launcher.cjs   ← s
                              cc-hud dist/index.js  ──stdout──→ status bar
                               ↘ transcript JSONL (tail 64KB → active subagents)
                               ↘ git symbolic-ref / status (folder · branch*, 800ms budget)
-                              ↘ claude-refresh.js (detached → top-model weekly gauge, 5 min cache)
+                              ↘ refresh.js claude (detached → top-model weekly gauge, 5 min cache)
 ```
 
 <table>
 <tr>
   <td align="center" width="25%"><b>Stateless</b><br/><sub>Fresh process per tick<br/>zero memory leaks</sub></td>
-  <td align="center" width="25%"><b>Fast</b><br/><sub>~60ms render<br/>within 300ms debounce</sub></td>
+  <td align="center" width="25%"><b>Fast</b><br/><sub>~30ms render<br/>within 300ms debounce</sub></td>
   <td align="center" width="25%"><b>Safe</b><br/><sub>2s hard timeout<br/>all IO try-catch</sub></td>
   <td align="center" width="25%"><b>Upgrade-safe</b><br/><sub>Stable launcher (v0.5+)<br/>no re-setup on upgrade</sub></td>
 </tr>
@@ -191,6 +191,13 @@ cc-hud shows your current **thinking depth** (the model's reasoning effort — `
 - Fetches run in a **detached background refresher** — a statusline tick never waits on the network. Results are cached for 5 minutes. If no refresh has **succeeded** for 30 minutes the gauge is shown as `~Fable:51%` — "couldn't fetch" never looks like "fresh".
 - The gauge only activates on the official Anthropic backend with a subscription; API-key and third-party sessions skip it entirely.
 - Opt out anytime: set `CC_HUD_NO_REFRESH=1` to disable the background usage fetch (thinking depth is unaffected — it never touches the network).
+- **Behind a proxy?** The refresher honors `HTTPS_PROXY` / `https_proxy` / `ALL_PROXY`. Statusline processes often don't inherit your shell's proxy, so you can also put it in `~/.config/cc-hud/config.json`:
+
+  ```json
+  { "proxy": "http://127.0.0.1:7890" }
+  ```
+
+  Native `fetch` is tried first; on a transport failure or a WAF 403 the request is retried through `curl` (which is also the path that actually uses the proxy). A 401/404/500 is taken as the server's answer and not retried.
 
 ### Workspace, spend cap & cost
 
@@ -198,6 +205,7 @@ cc-hud shows your current **thinking depth** (the model's reasoning effort — `
 - **`spend:$12/$50 (3d)`** — the gateway spend limit (`rate_limits.spend_limit`), when your org sets one. Falls back to a bare percentage if the dollar figures aren't exposed.
 - **`$0.42`** — session cost estimate from Claude Code (`cost.total_cost_usd`); set `CC_HUD_NO_COST=1` to hide it.
 - Any other `rate_limits` window Claude Code adds later is listed as-is (`one day:7%`) rather than dropped.
+- **Subagents** are detected from the last 64 KB of the transcript. A very large tool result can push a still-running `Agent` call out of that window; if you want per-subagent rows regardless, Claude Code's own `subagentStatusLine` setting complements cc-hud.
 
 <br/>
 
@@ -249,14 +257,14 @@ Set the `CC_HUD_EXTRA_FILE` env var to any file whose first line is the text to 
 ```bash
 npm install
 npm run build      # compile TypeScript → dist/
-npm test           # 162 tests (node:test)
+npm test           # 173 tests (node:test)
 ```
 
 Project layout:
 
 | Path | Purpose |
 | --- | --- |
-| `src/` | TypeScript source — entry, render, model normalize, transcript (agents + effort fallback), git workspace, Claude gauge / DeepSeek / MiniMax / GLM collectors, detached refresher |
+| `src/` | TypeScript source — entry, render, model normalize, transcript (agents + effort fallback), git workspace, shared cache + HTTP (proxy, curl fallback), Claude gauge / DeepSeek / MiniMax / GLM collectors, detached refresher |
 | `scripts/launcher.cjs` | Stable-path launcher (`/cc-hud:setup` copies it to `~/.claude/bin/`) |
 | `commands/setup.md` | `/cc-hud:setup` slash command |
 | `tests/` | `node:test` unit tests (TS + CJS) |

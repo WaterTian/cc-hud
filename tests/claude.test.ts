@@ -186,7 +186,8 @@ describe('claude plan', () => {
     const refreshedPayload = async () => {
       const { refreshClaudePlan } = await importClaude();
       await refreshClaudePlan();
-      return (JSON.parse(readFileSync(cachePath(), 'utf8')) as { payload: unknown }).payload as {
+      // A refresh that never got data leaves payload null (no gauge) — read it as an empty gauge
+      return ((JSON.parse(readFileSync(cachePath(), 'utf8')) as { payload: unknown }).payload ?? { topModel: null }) as {
         topModel: { name: string; percent: number; resetsAt: number | null } | null;
       };
     };

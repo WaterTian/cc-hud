@@ -84,7 +84,23 @@ async function main(): Promise<void> {
   const contextPercent: number | null = usageUnavailable
     ? null
     : Math.round(cw!.used_percentage as number);
-  const { agents, effort: transcriptEffort } = await transcriptPromise;
+  // Everything else is independent — await it all at once. The third-party
+  // collectors still fetch inline on a cache miss (each ≤ 2s, now concurrent).
+  const [
+    { agents, effort: transcriptEffort },
+    plan,
+    workspace,
+    extra,
+    mmQuota,
+  ] = await Promise.all([
+    transcriptPromise,
+    planPromise,
+    workspacePromise,
+    // Extra segment: explicit CC_HUD_EXTRA_FILE > DeepSeek balance > GLM balance
+    (async () => readExtraFile() ?? (await getExtra()) ?? (await getGlmBalance()))(),
+    // MiniMax Token Plan quota — no-op for Claude/DeepSeek (returns null)
+    getMmxQuota(),
+  ]);
 
   // Thinking depth: stdin `effort.level` is authoritative; the transcript
   // fallback covers older Claude Code builds that don't send it.
@@ -96,14 +112,6 @@ async function main(): Promise<void> {
   const size = num(cw?.context_window_size);
   const modelVariant = modelName.variant ?? (size != null && size >= 1_000_000 ? `${Math.round(size / 1_000_000)}M` : null);
 
-  // Extra segment: explicit CC_HUD_EXTRA_FILE > DeepSeek balance > GLM balance
-  const extra = readExtraFile() ?? (await getExtra()) ?? (await getGlmBalance());
-
-  // MiniMax Token Plan quota — no-op for Claude/DeepSeek (returns null)
-  const mmQuota = await getMmxQuota();
-
-  const plan = await planPromise;
-  const workspace = await workspacePromise;
   const { spend, extras } = splitLimits(data.rate_limits);
 
   const cost = num(data.cost?.total_cost_usd);

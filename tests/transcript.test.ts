@@ -106,4 +106,12 @@ describe('parseTranscript', () => {
     assert.equal(effort, 'max');
     assert.equal(agents.length, 1);
   });
+
+  it('ignores a tool_result whose Agent tool_use fell outside the tail window', async () => {
+    // Only the result line is in the window — must not resurrect or crash
+    const { agents } = await parseTranscript(write([
+      { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'toolu_gone' }] } },
+    ]));
+    assert.deepEqual(agents, []);
+  });
 });
