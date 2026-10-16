@@ -97,4 +97,23 @@ describe('findCcHudEntry', () => {
     const got = findCcHudEntry(home);
     assert.ok(got && got.includes(path.join('0.5.0', 'dist', 'index.js')));
   });
+
+  it('ranks installs without lastUpdated after dated ones', () => {
+    const home = makeFakeHome([
+      { version: '0.9.0', lastUpdated: undefined },
+      { version: '0.8.0', lastUpdated: '2026-10-16T00:00:00Z' },
+    ]);
+    assert.match(findCcHudEntry(home), /0\.8\.0[\\/]dist[\\/]index\.js$/);
+  });
+
+  it('tolerates an unparsable lastUpdated and a non-array plugin entry', () => {
+    const home = makeFakeHome([
+      { version: '0.9.0', lastUpdated: 'not-a-date' },
+    ]);
+    const file = path.join(home, '.claude', 'plugins', 'installed_plugins.json');
+    const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+    data.plugins['cc-hud@broken'] = { installPath: '/nope' };
+    fs.writeFileSync(file, JSON.stringify(data));
+    assert.match(findCcHudEntry(home), /0\.9\.0[\\/]dist[\\/]index\.js$/);
+  });
 });

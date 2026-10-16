@@ -33,6 +33,8 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/WaterTian/cc-hud/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/WaterTian/cc-hud/ci.yml?branch=main&style=flat-square&label=CI" alt="CI" /></a>
+  &nbsp;
   <a href="https://www.npmjs.com/package/cc-hud"><img src="https://img.shields.io/npm/v/cc-hud?style=flat-square&color=cb3837" alt="npm version" /></a>
   &nbsp;
   <a href="https://www.npmjs.com/package/cc-hud"><img src="https://img.shields.io/npm/dm/cc-hud?style=flat-square&color=cb3837" alt="npm downloads" /></a>
@@ -257,7 +259,7 @@ Set the `CC_HUD_EXTRA_FILE` env var to any file whose first line is the text to 
 ```bash
 npm install
 npm run build      # compile TypeScript → dist/
-npm test           # 173 tests (node:test)
+npm test           # 185 tests (node:test)
 ```
 
 Project layout:

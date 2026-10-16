@@ -1,6 +1,6 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -24,7 +24,7 @@ describe('getWorkspace', () => {
     writeFileSync(join(repo, 'a.txt'), 'a');
     git(repo, 'add', 'a.txt');
     git(repo, 'commit', '-q', '-m', 'init');
-    execFileSync('mkdir', ['-p', plain]);
+    mkdirSync(plain, { recursive: true });
   });
 
   after(() => rmSync(root, { recursive: true, force: true }));

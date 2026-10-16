@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+jobs:
+  # Full suite. tests/*.test.ts run through Node's built-in type stripping,
+  # which needs Node ≥ 22.6 — so the suite itself runs on 22 and 24.
+  test:
+    name: test (node ${{ matrix.node }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm test
+        env:
+          CC_HUD_NO_REFRESH: '1'
+
+  # dist/ is committed: a source change without a rebuild must fail CI.
+  dist-sync:
+    name: dist/ matches src/
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: git diff --exit-code --stat -- dist/
+
+  # The shipped runtime (dist/index.js) still has to work on the oldest
+  # supported Node — exercise it with a statusline-shaped stdin, no tests.
+  runtime-smoke:
+    name: runtime (node ${{ matrix.node }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [18, 20]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: render a sample tick
+        shell: bash
+        env:
+          CC_HUD_NO_REFRESH: '1'
+        run: |
+          out=$(echo '{"model":{"id":"claude-fable-5-1"},"effort":{"level":"high"},"context_window":{"used_percentage":13,"context_window_size":1000000},"rate_limits":{"five_hour":{"used_percentage":18},"seven_day":{"used_percentage":2}},"cost":{"total_cost_usd":0.42}}' | node dist/index.js)
+          echo "$out"
+          plain=$(printf '%s' "$out" | sed 's/\x1b\[[0-9;]*m//g')
+          case "$plain" in
+            *"[Fable 5.1 · High]"*"13% (1M)"*"5h:18%"*"7d:2%"*'$0.42'*) ;;
+            *) echo "unexpected output: $plain"; exit 1 ;;
+          esac
+      - name: empty stdin degrades, never crashes
+        shell: bash
+        env:
+          CC_HUD_NO_REFRESH: '1'
+        run: printf '' | node dist/index.js | grep -q 'Claude'

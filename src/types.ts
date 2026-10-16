@@ -34,11 +34,52 @@ export interface StdinData {
     spend_limit?: SpendLimitWindow | null;
   } & Record<string, RateWindow | SpendLimitWindow | null | undefined>) | null;
   effort?: { level?: string | null } | null; // absent when the model has no effort control
-  cost?: { total_cost_usd?: number | null } | null;
+  cost?: {
+    total_cost_usd?: number | null;
+    total_duration_ms?: number;
+    total_api_duration_ms?: number;
+    total_lines_added?: number;
+    total_lines_removed?: number;
+  } | null;
   transcript_path?: string;
   cwd?: string;
-  workspace?: { current_dir?: string; project_dir?: string; git_worktree?: string };
-  worktree?: { name?: string; path?: string; branch?: string | null };
+  session_id?: string;
+  session_name?: string;        // absent unless --name / /rename / AI title
+  version?: string;             // Claude Code version
+  exceeds_200k_tokens?: boolean; // top-level, fixed 200k threshold
+  fast_mode?: boolean;
+  thinking?: { enabled?: boolean };
+  output_style?: { name?: string };
+  vim?: { mode?: string };      // absent unless vim mode is on
+  agent?: { name?: string };    // absent unless --agent / agent settings
+  workspace?: {
+    current_dir?: string;
+    project_dir?: string;
+    added_dirs?: string[];
+    git_worktree?: string;      // absent unless in a linked worktree
+    repo?: { host?: string; owner?: string; name?: string }; // absent without an origin remote
+  };
+  worktree?: {                  // absent unless in a worktree session
+    name?: string;
+    path?: string;
+    branch?: string | null;
+    original_cwd?: string;
+    original_branch?: string | null;
+  };
+  pr?: {                        // absent when the branch has no open PR / MR
+    number?: number;
+    url?: string;
+    review_state?: 'approved' | 'pending' | 'changes_requested' | 'draft' | string;
+    kind?: 'mr' | string;
+  };
+  prompt_cache?: {              // absent until the first main-conversation response
+    warm?: boolean;
+    caching_observed?: boolean;
+    ttl?: '5m' | '1h' | string;
+    expires_at?: number | null;
+    hit_ratio?: number | null;
+    [k: string]: unknown;
+  };
 }
 
 export interface AgentEntry {
