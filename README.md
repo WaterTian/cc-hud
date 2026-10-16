@@ -14,8 +14,8 @@
 
 <p align="center">
   <picture>
-    <source srcset="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.svg?v=0.7.0" type="image/svg+xml" />
-    <img src="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.png?v=0.7.0" alt="cc-hud preview — model, thinking depth, context bar, agents, rate limits, top-model gauge, balance" width="900" />
+    <source srcset="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.svg?v=0.8.0" type="image/svg+xml" />
+    <img src="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.png?v=0.8.0" alt="cc-hud preview — model, thinking depth, context bar, agents, rate limits, top-model gauge, balance" width="900" />
   </picture>
 </p>
 
@@ -70,12 +70,13 @@
 
 <table>
 <tr>
-  <td align="center" width="16%"><h3>█▌</h3><b>Context Bar</b><br/><sub>1/8-precision blocks<br/>80-level granularity</sub></td>
+  <td align="center" width="14%"><h3>█▌</h3><b>Context Bar</b><br/><sub>1/8-precision blocks<br/>80-level granularity</sub></td>
   <td align="center" width="17%"><h3>★</h3><b>Depth & Top Model</b><br/><sub>Thinking-depth badge<br/>Opus/Fable weekly gauge</sub></td>
   <td align="center" width="17%"><h3>◐</h3><b>Agents</b><br/><sub>Running subagents<br/>with type & model</sub></td>
-  <td align="center" width="17%"><h3>%</h3><b>Rate Limits</b><br/><sub>5h / 7d usage<br/>+ reset countdown</sub></td>
+  <td align="center" width="17%"><h3>%</h3><b>Rate Limits</b><br/><sub>5h / 7d / spend cap<br/>+ reset countdown</sub></td>
+  <td align="center" width="17%"><h3>⎇</h3><b>Workspace</b><br/><sub>folder · branch*<br/>+ session cost</sub></td>
   <td align="center" width="17%"><h3>◧</h3><b>Color</b><br/><sub><a href="https://github.com/catppuccin/catppuccin">Catppuccin Mocha</a><br/>dual-tone gradient</sub></td>
-  <td align="center" width="16%"><h3>0</h3><b>Dependencies</b><br/><sub>Zero. Node.js<br/>built-ins only</sub></td>
+  <td align="center" width="14%"><h3>0</h3><b>Dependencies</b><br/><sub>Zero. Node.js<br/>built-ins only</sub></td>
 </tr>
 </table>
 
@@ -161,7 +162,8 @@ Claude Code ──stdin JSON──→  ~/.claude/bin/cc-hud-launcher.cjs   ← s
                               │ resolves the currently installed cc-hud
                               ▼
                              cc-hud dist/index.js  ──stdout──→ status bar
-                              ↘ transcript JSONL (tail 64KB → active agents + thinking depth)
+                              ↘ transcript JSONL (tail 64KB → active subagents)
+                              ↘ git symbolic-ref / status (folder · branch*, 800ms budget)
                               ↘ claude-refresh.js (detached → top-model weekly gauge, 5 min cache)
 ```
 
@@ -181,14 +183,21 @@ Claude Code ──stdin JSON──→  ~/.claude/bin/cc-hud-launcher.cjs   ← s
 cc-hud shows your current **thinking depth** (the model's reasoning effort — `Low` / `Medium` / `High` / `XHigh` / `Max`) next to the model name, plus the **top-tier-model weekly gauge** — the "Current week (Opus / Fable)" meter from `/usage` that the statusline JSON doesn't expose:
 
 ```
-[Fable 5 · XHigh] █▊░░░░░░░░ 18% │ 5h:1% (4.5h) │ 7d:35% (4.1d) │ Fable:51%
+[Fable 5.1 · XHigh] █▊░░░░░░░░ 18% (1M) │ 5h:1% (4.5h) │ 7d:35% (4.1d) │ Fable:51% │ cc-hud · main* │ $0.42
 ```
 
-- **Thinking depth** is read straight from the session transcript (the latest turn's `effort`) — **zero network**, works on every backend. The badge hides itself when the transcript carries no effort.
+- **Thinking depth** comes from the statusline stdin (`effort.level`), falling back to the session transcript on older Claude Code builds — **zero network**, works on every backend. The badge hides itself when neither carries an effort.
 - **Top-model gauge** comes from the same OAuth usage endpoint the `/usage` panel reads. The OAuth token is read locally (`~/.claude/.credentials.json`, or the macOS Keychain), used only for this read-only call, and never stored, logged, or refreshed.
-- Fetches run in a **detached background refresher** — a statusline tick never waits on the network. Results are cached for 5 minutes.
+- Fetches run in a **detached background refresher** — a statusline tick never waits on the network. Results are cached for 5 minutes. If no refresh has **succeeded** for 30 minutes the gauge is shown as `~Fable:51%` — "couldn't fetch" never looks like "fresh".
 - The gauge only activates on the official Anthropic backend with a subscription; API-key and third-party sessions skip it entirely.
-- Opt out anytime: set `CC_HUD_NO_REFRESH=1` to disable the background usage fetch (the transcript-read thinking depth is unaffected — it never touches the network).
+- Opt out anytime: set `CC_HUD_NO_REFRESH=1` to disable the background usage fetch (thinking depth is unaffected — it never touches the network).
+
+### Workspace, spend cap & cost
+
+- **`cc-hud · main*`** — current folder and git branch; `*` marks uncommitted tracked changes. Outside a repo (or on a detached HEAD) only the folder shows. Worktree sessions reuse the branch Claude Code already reports.
+- **`spend:$12/$50 (3d)`** — the gateway spend limit (`rate_limits.spend_limit`), when your org sets one. Falls back to a bare percentage if the dollar figures aren't exposed.
+- **`$0.42`** — session cost estimate from Claude Code (`cost.total_cost_usd`); set `CC_HUD_NO_COST=1` to hide it.
+- Any other `rate_limits` window Claude Code adds later is listed as-is (`one day:7%`) rather than dropped.
 
 <br/>
 
@@ -240,14 +249,14 @@ Set the `CC_HUD_EXTRA_FILE` env var to any file whose first line is the text to 
 ```bash
 npm install
 npm run build      # compile TypeScript → dist/
-npm test           # 142 tests (node:test)
+npm test           # 162 tests (node:test)
 ```
 
 Project layout:
 
 | Path | Purpose |
 | --- | --- |
-| `src/` | TypeScript source — entry, render, model normalize, transcript (agents + thinking depth), Claude gauge / DeepSeek / MiniMax / GLM collectors, detached refresher |
+| `src/` | TypeScript source — entry, render, model normalize, transcript (agents + effort fallback), git workspace, Claude gauge / DeepSeek / MiniMax / GLM collectors, detached refresher |
 | `scripts/launcher.cjs` | Stable-path launcher (`/cc-hud:setup` copies it to `~/.claude/bin/`) |
 | `commands/setup.md` | `/cc-hud:setup` slash command |
 | `tests/` | `node:test` unit tests (TS + CJS) |

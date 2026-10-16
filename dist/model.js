@@ -1,19 +1,13 @@
 function tryParse(raw) {
-    const cm = raw.match(/claude-(\w+)-(\d+)-(\d+)(?:-\d+)?(?:\[(\w+)\])?/);
+    // claude-<family>-<major>[-<minor>][-<yyyymmdd>][[variant]]
+    // The minor is at most 3 digits so a dated single-version id
+    // (claude-sonnet-4-20250514) doesn't read its snapshot date as "4.20250514".
+    const cm = raw.match(/claude-([a-z]+)-(\d+)(?:-(\d{1,3})(?!\d))?(?:-\d{4,})?(?:\[(\w+)\])?/i);
     if (cm) {
         const family = `${cm[1][0].toUpperCase()}${cm[1].slice(1)}`;
         return {
-            name: `${family} ${cm[2]}.${cm[3]}`,
+            name: cm[3] ? `${family} ${cm[2]}.${cm[3]}` : `${family} ${cm[2]}`,
             variant: cm[4] ? cm[4].toUpperCase() : null,
-        };
-    }
-    // Single-version ids (claude-fable-5) — no minor number to dot-join
-    const cs = raw.match(/^claude-(\w+)-(\d+)(?:\[(\w+)\])?$/);
-    if (cs) {
-        const family = `${cs[1][0].toUpperCase()}${cs[1].slice(1)}`;
-        return {
-            name: `${family} ${cs[2]}`,
-            variant: cs[3] ? cs[3].toUpperCase() : null,
         };
     }
     const dm = raw.match(/^deepseek-(v\d+(?:-\w+))(?:\[(\w+)\])?$/);

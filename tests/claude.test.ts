@@ -46,9 +46,9 @@ describe('claude plan', () => {
     }));
   }
 
-  function seedCache(payload: unknown, ts = Date.now()): void {
+  function seedCache(payload: unknown, ts = Date.now(), okTs: number | null = ts): void {
     mkdirSync(join(tmpHome, '.cache', 'cc-hud'), { recursive: true });
-    writeFileSync(cachePath(), JSON.stringify({ payload, ts }));
+    writeFileSync(cachePath(), JSON.stringify({ payload, ts, okTs }));
   }
 
   beforeEach(() => {
@@ -125,7 +125,7 @@ describe('claude plan', () => {
       const payload = { topModel: { name: 'Fable', percent: 46, resetsAt: null } };
       seedCache(payload);
       const { getClaudePlan } = await importClaude();
-      assert.deepEqual(await getClaudePlan(true), payload);
+      assert.deepEqual(await getClaudePlan(true), { ...payload, stale: false });
     });
   });
 
@@ -148,7 +148,7 @@ describe('claude plan', () => {
       const payload = { topModel: { name: 'Fable', percent: 46, resetsAt: null } };
       seedCache(payload);
       const { getClaudePlan } = await importClaude();
-      assert.deepEqual(await getClaudePlan(true), payload);
+      assert.deepEqual(await getClaudePlan(true), { ...payload, stale: false });
       assert.equal(fetchCalls.length, 0);
     });
 
@@ -156,7 +156,14 @@ describe('claude plan', () => {
       const payload = { topModel: { name: 'Fable', percent: 46, resetsAt: null } };
       seedCache(payload, Date.now() - 60 * 60 * 1000);
       const { getClaudePlan } = await importClaude();
-      assert.deepEqual(await getClaudePlan(true), payload);
+      assert.deepEqual(await getClaudePlan(true), { ...payload, stale: true });
+    });
+
+    it('a cache written before okTs existed is treated as stale', async () => {
+      const payload = { topModel: { name: 'Fable', percent: 46, resetsAt: null } };
+      seedCache(payload, Date.now(), null);
+      const { getClaudePlan } = await importClaude();
+      assert.equal((await getClaudePlan(true))!.stale, true);
     });
 
     it('returns null when the cached gauge is empty', async () => {
@@ -312,8 +319,20 @@ describe('claude plan', () => {
       const r1 = await getClaudePlan(true);
       const r2 = await getClaudePlan(true);
       assert.equal(fetchCalls.length, 1, 'only the refresh should fetch');
-      assert.deepEqual(r1, payload);
-      assert.deepEqual(r2, payload);
+      assert.deepEqual(r1, { ...payload, stale: false });
+      assert.deepEqual(r2, { ...payload, stale: false });
+    });
+
+    it('a failed refresh keeps the gauge but does not advance okTs', async () => {
+      await refreshedPayload();
+      const okTs = JSON.parse(readFileSync(cachePath(), 'utf8')).okTs as number;
+      assert.ok(okTs > 0);
+      nextError = new Error('network down');
+      await refreshedPayload();
+      const entry = JSON.parse(readFileSync(cachePath(), 'utf8'));
+      assert.equal(entry.okTs, okTs);
+      assert.ok(entry.ts > okTs || entry.ts === okTs);
+      assert.equal(entry.payload.topModel.name, 'Fable');
     });
   });
 });

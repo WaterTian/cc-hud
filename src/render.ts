@@ -84,13 +84,29 @@ function formatCountdown(resetsAt: number | null): { text: string; color: string
   return { text: `${fmtNum(days)}d`, color: c };
 }
 
+function countdownSuffix(resetsAt: number | null): string {
+  const cd = formatCountdown(resetsAt);
+  return cd ? ` ${OVERLAY}(${RESET}${cd.color}${cd.text}${RESET}${OVERLAY})${RESET}` : '';
+}
+
 function rateSegment(label: string, percent: number | null, resetsAt: number | null): string | null {
   if (percent == null) return null;
   const clamped = Math.round(Math.max(0, Math.min(100, percent)));
   const c = color(clamped);
-  const cd = formatCountdown(resetsAt);
-  const suffix = cd ? ` ${OVERLAY}(${RESET}${cd.color}${cd.text}${RESET}${OVERLAY})${RESET}` : '';
-  return `${OVERLAY}${label}:${RESET}${c}${clamped}%${RESET}${suffix}`;
+  return `${OVERLAY}${label}:${RESET}${c}${clamped}%${RESET}${countdownSuffix(resetsAt)}`;
+}
+
+// Gateway spend cap: `$12/$50` when the dollar figures are present, else the
+// bare percentage. Colored by percent, which may exceed 100 (overage).
+function spendSegment(s: RenderData['spendLimit']): string | null {
+  if (!s) return null;
+  const pct = Math.round(Math.max(0, s.percent));
+  const c = color(Math.min(100, pct));
+  const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(2));
+  const body = s.usedUsd != null && s.limitUsd != null
+    ? `$${fmt(s.usedUsd)}${OVERLAY}/${RESET}${c}$${fmt(s.limitUsd)}`
+    : `${pct}%`;
+  return `${OVERLAY}spend:${RESET}${c}${body}${RESET}${countdownSuffix(s.resetsAt)}`;
 }
 
 function agentSegment(agents: RenderData['agents']): string | null {
@@ -121,9 +137,11 @@ export function render(data: RenderData): string {
   if (agentStr) segments.push(agentStr);
 
   // Rate limits: 5h │ 7d │ top-model weekly gauge
+  // A stale gauge (no successful refresh for 30 min) is prefixed with ~ so
+  // "couldn't fetch" never reads as "fresh".
   const rTop = data.topModel
     ? rateSegment(
-        data.topModel.name,
+        `${data.topModelStale ? '~' : ''}${data.topModel.name}`,
         data.topModel.percent,
         sameReset(data.topModel.resetsAt, data.sevenDayResetsAt) ? null : data.topModel.resetsAt,
       )
@@ -132,14 +150,28 @@ export function render(data: RenderData): string {
     rateSegment('5h', data.fiveHourPercent, data.fiveHourResetsAt),
     rateSegment('7d', data.sevenDayPercent, data.sevenDayResetsAt),
     rTop,
+    spendSegment(data.spendLimit),
+    ...data.extraLimits.map(l => rateSegment(l.label, l.percent, l.resetsAt)),
   ].filter((s): s is string => s !== null);
   if (rates.length > 0) {
     segments.push(rates.join(` ${OVERLAY}│${RESET} `));
   }
 
+  // Workspace: folder · branch (dirty tree marked with *)
+  if (data.workspace) {
+    const w = data.workspace;
+    const branch = w.branch ? `${OVERLAY} · ${RESET}${GREEN}${w.branch}${w.dirty ? '*' : ''}${RESET}` : '';
+    segments.push(`${SAPPHIRE}${w.name}${RESET}${branch}`);
+  }
+
   // Extra (generic pluggable segment, e.g. balance for non-Anthropic backends)
   if (data.extra) {
     segments.push(`${TEAL}${data.extra}${RESET}`);
+  }
+
+  // Session cost (client-side list-price estimate from stdin `cost`)
+  if (data.costUsd != null) {
+    segments.push(`${OVERLAY}$${data.costUsd.toFixed(2)}${RESET}`);
   }
 
   return segments.join(` ${OVERLAY}│${RESET} `);

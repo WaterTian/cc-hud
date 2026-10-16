@@ -17,7 +17,12 @@ function makeData(overrides: Partial<RenderData> = {}): RenderData {
     fiveHourResetsAt: null,
     sevenDayResetsAt: null,
     thinkingDepth: null,
+    spendLimit: null,
+    extraLimits: [],
     topModel: null,
+    topModelStale: false,
+    workspace: null,
+    costUsd: null,
     extra: null,
     ...overrides,
   };
@@ -246,5 +251,65 @@ describe('render', () => {
   it('null contextPercent renders an empty track, not a filled bar', () => {
     const raw = render(makeData({ contextPercent: null }));
     assert.ok(!raw.includes('█'));
+  });
+
+  it('shows workspace folder · branch', () => {
+    const out = strip(render(makeData({ workspace: { name: 'cc-hud', branch: 'main', dirty: false } })));
+    assert.match(out, /cc-hud · main/);
+    assert.ok(!out.includes('main*'));
+  });
+
+  it('marks a dirty tree with *', () => {
+    const out = strip(render(makeData({ workspace: { name: 'cc-hud', branch: 'main', dirty: true } })));
+    assert.match(out, /cc-hud · main\*/);
+  });
+
+  it('shows folder alone outside a git repo', () => {
+    const out = strip(render(makeData({ workspace: { name: 'notes', branch: null, dirty: false } })));
+    assert.match(out, /│ notes$/);
+    assert.ok(!out.includes(' · '));
+  });
+
+  it('omits workspace segment when null', () => {
+    const out = strip(render(makeData({ workspace: null })));
+    assert.ok(!out.includes(' · '));
+  });
+
+  // ─── v0.8.0: stale gauge / spend cap / extra windows / cost ───
+
+  it('prefixes a stale top-model gauge with ~', () => {
+    const out = strip(render(makeData({ topModel: { name: 'Fable', percent: 46, resetsAt: null }, topModelStale: true })));
+    assert.match(out, /~Fable:46%/);
+  });
+
+  it('no ~ prefix when the gauge is fresh', () => {
+    const out = strip(render(makeData({ topModel: { name: 'Fable', percent: 46, resetsAt: null }, topModelStale: false })));
+    assert.match(out, /│ Fable:46%/);
+  });
+
+  it('renders spend limit as $used/$limit with countdown', () => {
+    const out = strip(render(makeData({
+      spendLimit: { percent: 24, usedUsd: 12, limitUsd: 50, resetsAt: Date.now() + 3 * 86_400_000 },
+    })));
+    assert.match(out, /spend:\$12\/\$50 \(3d\)/);
+  });
+
+  it('renders spend limit as bare percent without dollar figures', () => {
+    const out = strip(render(makeData({ spendLimit: { percent: 130, usedUsd: null, limitUsd: null, resetsAt: null } })));
+    assert.match(out, /spend:130%/);
+  });
+
+  it('lists unknown rate windows generically', () => {
+    const out = strip(render(makeData({ extraLimits: [{ label: 'one day', percent: 7, resetsAt: null }] })));
+    assert.match(out, /one day:7%/);
+  });
+
+  it('shows session cost after everything else', () => {
+    const out = strip(render(makeData({ costUsd: 0.4242, workspace: { name: 'x', branch: 'main', dirty: false } })));
+    assert.match(out, /x · main │ \$0\.42$/);
+  });
+
+  it('omits cost when null', () => {
+    assert.ok(!strip(render(makeData())).includes('$'));
   });
 });

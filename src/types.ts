@@ -1,3 +1,18 @@
+// stdin shape — see https://code.claude.com/docs/en/statusline ("Available data").
+// Only the fields cc-hud reads are typed; everything else passes through untouched.
+export interface RateWindow {
+  used_percentage?: number | null;
+  resets_at?: number | null; // Unix epoch seconds
+}
+
+// Gateway spend cap (rate_limits.spend_limit). used_usd / limit_usd / period
+// stay absent under CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC.
+export interface SpendLimitWindow extends RateWindow {
+  used_usd?: number | null;
+  limit_usd?: number | null;
+  period?: 'daily' | 'weekly' | 'monthly' | string | null;
+}
+
 export interface StdinData {
   model?: { id?: string; display_name?: string };
   context_window?: {
@@ -11,12 +26,19 @@ export interface StdinData {
       cache_read_input_tokens?: number;
     } | null;
   };
-  rate_limits?: {
-    five_hour?: { used_percentage?: number | null; resets_at?: number | null } | null;
-    seven_day?: { used_percentage?: number | null; resets_at?: number | null } | null;
-  } | null;
+  // Absent for API-key sessions; each window can be independently absent
+  // and is dropped once its resets_at passes. Unknown windows may appear.
+  rate_limits?: ({
+    five_hour?: RateWindow | null;
+    seven_day?: RateWindow | null;
+    spend_limit?: SpendLimitWindow | null;
+  } & Record<string, RateWindow | SpendLimitWindow | null | undefined>) | null;
+  effort?: { level?: string | null } | null; // absent when the model has no effort control
+  cost?: { total_cost_usd?: number | null } | null;
   transcript_path?: string;
   cwd?: string;
+  workspace?: { current_dir?: string; project_dir?: string; git_worktree?: string };
+  worktree?: { name?: string; path?: string; branch?: string | null };
 }
 
 export interface AgentEntry {
@@ -34,6 +56,27 @@ export interface TopModelUsage {
   resetsAt: number | null;
 }
 
+// Working directory + git branch (`cc-hud · main*`)
+export interface WorkspaceInfo {
+  name: string;
+  branch: string | null;
+  dirty: boolean;
+}
+
+// A rate window cc-hud has no dedicated slot for (future stdin additions)
+export interface ExtraLimit {
+  label: string;
+  percent: number;
+  resetsAt: number | null;
+}
+
+export interface SpendLimit {
+  percent: number;
+  resetsAt: number | null;
+  usedUsd: number | null;
+  limitUsd: number | null;
+}
+
 export interface RenderData {
   model: string;
   modelVariant: string | null;
@@ -43,7 +86,12 @@ export interface RenderData {
   sevenDayPercent: number | null;
   fiveHourResetsAt: number | null;
   sevenDayResetsAt: number | null;
+  spendLimit: SpendLimit | null;
+  extraLimits: ExtraLimit[];
   thinkingDepth: string | null;
   topModel: TopModelUsage | null;
+  topModelStale: boolean; // gauge last refreshed > 30 min ago — rendered with a ~ prefix
+  workspace: WorkspaceInfo | null;
+  costUsd: number | null;
   extra: string | null;
 }

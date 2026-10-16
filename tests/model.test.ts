@@ -22,6 +22,12 @@ describe('shortModelName', () => {
     );
   });
 
+  it('does not read a snapshot date as the minor version', () => {
+    assert.deepEqual(shortModelName(undefined, 'claude-sonnet-4-20250514'), { name: 'Sonnet 4', variant: null });
+    assert.deepEqual(shortModelName(undefined, 'claude-opus-4-20250514[1m]'), { name: 'Opus 4', variant: '1M' });
+    assert.deepEqual(shortModelName(undefined, 'claude-fable-5-1-20261001'), { name: 'Fable 5.1', variant: null });
+  });
+
   it('parses single-version model ids (Claude 5 family)', () => {
     assert.deepEqual(shortModelName(undefined, 'claude-fable-5'), { name: 'Fable 5', variant: null });
     assert.deepEqual(shortModelName(undefined, 'claude-fable-5[1m]'), { name: 'Fable 5', variant: '1M' });

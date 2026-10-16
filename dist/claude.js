@@ -6,10 +6,17 @@ import { fileURLToPath } from 'node:url';
 const CACHE_DIR = '.cache/cc-hud';
 const TTL = 5 * 60 * 1000; // 5 min — same as balance.ts / mmx.ts / glm.ts
 const REFRESH_COOLDOWN = 30 * 1000; // min gap between detached refresh spawns
+const STALE_MS = 30 * 60 * 1000; // no successful fetch for this long → gauge flagged stale
 const TIMEOUT_MS = 2000;
 // Same endpoint the /usage panel reads; its `limits[]` array carries the
 // top-tier-model weekly gauge that the statusline stdin JSON does not expose.
 const USAGE_URL = 'https://api.anthropic.com/api/oauth/usage';
+function toPlan(entry, now) {
+    const topModel = entry?.payload?.topModel;
+    if (!topModel)
+        return null;
+    return { topModel, stale: entry.okTs == null || now - entry.okTs > STALE_MS };
+}
 // Critical isolation: third-party backends (DeepSeek / GLM / MiniMax) skip the whole module
 function isAnthropic() {
     const base = process.env.ANTHROPIC_BASE_URL;
@@ -157,11 +164,15 @@ export async function refreshClaudePlan() {
     const cached = readCache();
     const token = readAccessToken();
     const topModel = token ? await fetchTopModel(token) : null;
+    const now = Date.now();
     writeCacheEntry({
         payload: {
             topModel: topModel ?? cached?.payload?.topModel ?? null,
         },
-        ts: Date.now(),
+        ts: now,
+        // Only a successful fetch advances okTs — a failure keeps the old gauge
+        // but lets it age into the stale state.
+        okTs: topModel ? now : cached?.okTs,
     });
 }
 function spawnRefresh() {
@@ -184,9 +195,9 @@ export async function getClaudePlan(hasRateLimits) {
     const cached = readCache();
     const now = Date.now();
     if (cached && now - cached.ts < TTL) {
-        return cached.payload?.topModel ? cached.payload : null;
+        return toPlan(cached, now);
     }
-    // Stale or missing → kick off a background refresh; the gauge arrives next tick.
+    // Expired or missing → kick off a background refresh; the gauge arrives next tick.
     // The refreshTs stamp throttles detached-refresh spawns (REFRESH_COOLDOWN).
     if (cached?.refreshTs == null || now - cached.refreshTs >= REFRESH_COOLDOWN) {
         const placeholder = cached
@@ -194,7 +205,7 @@ export async function getClaudePlan(hasRateLimits) {
             : { payload: { topModel: null }, ts: 0, refreshTs: now };
         writeCacheEntry(placeholder);
         spawnRefresh();
-        return placeholder.payload?.topModel ? placeholder.payload : null;
+        return toPlan(placeholder, now);
     }
-    return cached?.payload?.topModel ? cached.payload : null;
+    return toPlan(cached, now);
 }

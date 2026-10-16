@@ -1,6 +1,6 @@
 {
   "name": "cc-hud",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Compact statusline HUD for Claude Code — context, agents, rate limits",
   "type": "module",
   "main": "dist/index.js",
@@ -11,7 +11,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "test": "npm run build && node --test",
-    "test:stdin": "npm run build && echo {\"model\":{\"id\":\"claude-opus-4-7[1m]\",\"display_name\":\"Opus 4.7 (1M context)\"},\"context_window\":{\"used_percentage\":13,\"context_window_size\":1000000},\"rate_limits\":{\"five_hour\":{\"used_percentage\":18},\"seven_day\":{\"used_percentage\":2}}} | node dist/index.js"
+    "test:stdin": "npm run build && echo '{\"model\":{\"id\":\"claude-fable-5-1\",\"display_name\":\"Fable 5.1\"},\"effort\":{\"level\":\"high\"},\"context_window\":{\"used_percentage\":13,\"context_window_size\":1000000},\"rate_limits\":{\"five_hour\":{\"used_percentage\":18},\"seven_day\":{\"used_percentage\":2}},\"workspace\":{\"current_dir\":\"/tmp/cc-hud\"},\"cost\":{\"total_cost_usd\":0.42}}' | node dist/index.js"
   },
   "files": [
     "dist/",
