@@ -51,14 +51,15 @@ Branch on the current `statusLine.command`:
 - **Missing** → merge in the target. Tell user: `✓ statusLine registered (cc-hud launcher)`.
 - **Already equals the target** (points at `cc-hud-launcher.cjs`, quoted, forward slashes) → leave untouched. Tell user: `✓ launcher already registered (idempotent skip)`.
 - **Points at `cc-hud-launcher.cjs` but unquoted or with backslashes** (written by an older setup) → overwrite with the target. Tell user: `✓ statusLine command normalized (quoted path, forward slashes)`.
-- **Direct cc-hud path** (contains `cc-hud` and `dist/index.js` or `dist\index.js`) — either the old version-pinned marketplace form **or** a from-source checkout; the launcher can only resolve the former, so check which before touching it:
+- **Points at `cc-hud-launcher.cjs` under a different config dir** (user changed `CLAUDE_CONFIG_DIR` since the last setup) → overwrite with the target. Tell user: `✓ statusLine moved to the current config dir`.
+- **Direct cc-hud path** (contains `cc-hud` and `dist/index.js` or `dist\index.js`): migrate **only** the old version-pinned marketplace form, i.e. a path under `<CFG>/plugins/cache/`; any other `dist/index.js` path is a from-source checkout and must stay untouched. For a cache path, also check the launcher can resolve the install before replacing it:
 
   ```bash
   node -e 'process.exit(require("<CFG>/bin/cc-hud-launcher.cjs").findCcHudEntry() ? 0 : 1)'
   ```
 
   - exit 0 (a marketplace install is registered) → overwrite with the target. Tell user: `✓ migrated statusLine from version-pinned path to stable launcher — future cc-hud upgrades no longer need re-running /cc-hud:setup`.
-  - exit 1 (nothing registered — a from-source checkout) → **leave untouched**. Tell user: `ℹ statusLine points at a from-source cc-hud checkout that the launcher cannot resolve (it only finds plugins installed via /plugin install) — left as is. Install from the marketplace and re-run /cc-hud:setup to switch to the launcher.`
+  - exit 1, or the path is not under `<CFG>/plugins/cache/` (a from-source checkout) → **leave untouched**. Tell user: `ℹ statusLine points at a from-source cc-hud checkout — left as is (the launcher only resolves plugins installed via /plugin install). Install from the marketplace and re-run /cc-hud:setup to switch to the launcher.`
 - **cc-bot shim** (contains `cc-bot` and `statusline.js`) → leave untouched. Tell user: `ℹ cc-bot's statusline shim already wraps cc-hud automatically — no change needed`.
 - **Other non-empty value** → ask via `AskUserQuestion` whether to overwrite (default = keep existing). On "keep", skip the write and tell user the launcher is installed at `<CFG>/bin/cc-hud-launcher.cjs` for manual wiring.
 
@@ -75,8 +76,7 @@ Tell the user (single block):
 Run /reload-plugins to see the HUD.
 
 Future upgrades:
-  /plugin marketplace update cc-hud
-  /plugin update cc-hud@cc-hud
+  /plugin marketplace update cc-hud     (refreshes the marketplace in the panel and updates plugins installed from it)
   /reload-plugins
-(no need to re-run /cc-hud:setup unless a release note says otherwise.)
+(no need to re-run /cc-hud:setup unless a release note says otherwise; there is no /plugin update slash command — use the panel's "Update now" or `claude plugin update cc-hud@cc-hud` in a terminal if the Installed tab still shows the old version.)
 ```

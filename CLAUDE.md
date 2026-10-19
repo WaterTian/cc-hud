@@ -37,6 +37,11 @@ src/
 scripts/launcher.cjs        — 稳定路径 launcher（setup 复制到 <cfg>/bin/cc-hud-launcher.cjs；找不到插件时打印一行提示而非空白）
 dist/                       — 编译输出（提交到仓库，CI 校验与 src 同步）
 tests/*.test.ts(.cjs)       — node:test 单元 + 端到端测试（render / model / transcript / git / http / cache / env / claude / balance / glm / mmx / launcher / index）
+.claude-plugin/marketplace.json — marketplace 入口（`/plugin marketplace add WaterTian/cc-hud` 读它；发版时和 plugin.json 一起 bump）
+.github/workflows/ci.yml    — CI：ubuntu / windows / macos × node 22 / 24 测试矩阵 + dist 同步检查 + node 18 / 20 运行时 smoke
+scripts/ds-balance-cache.sh — DeepSeek 余额写成一行文件给 CC_HUD_EXTRA_FILE 的示例脚本
+scripts/mmx-debug.mjs       — MiniMax 配额接口调试脚本（不进 src）
+preview.html / cc-hud-preview.{svg,png} — README 顶部预览图源文件与产物（图变了再改 README 里的 ?v= 缓存参数）
 ```
 
 ## 数据流

@@ -1,13 +1,13 @@
 <!--
   cc-hud — Claude Code statusline plugin
-  Shows: model name, thinking depth (reasoning effort), context window usage (progress bar), active subagents, rate limits (5h/7d) with reset countdown, top-model weekly gauge (Opus/Fable)
+  Shows: model name, thinking depth (reasoning effort), context window usage (progress bar), active subagents, rate limits (5h/7d/spend cap) with reset countdown, top-model weekly gauge (Opus/Fable), workspace folder · branch, session cost, third-party balance/quota
   Pure Node.js, zero dependencies, crash-free on Windows (no Bun)
 
   ## Auto-install (for Claude Code AI agents)
   Step 1: /plugin marketplace add WaterTian/cc-hud
   Step 2: /plugin install cc-hud@cc-hud
   Step 3: /reload-plugins
-  Step 4: /cc-hud:setup  (idempotent; v0.5.0+ installs a launcher so future upgrades only need /plugin marketplace update cc-hud + /plugin update cc-hud@cc-hud + /reload-plugins, no re-setup)
+  Step 4: /cc-hud:setup  (idempotent; v0.5.0+ installs a launcher so future upgrades only need /plugin marketplace update cc-hud + /reload-plugins, no re-setup)
 
   Keywords: claude-code plugin statusline status-bar hud monitoring context-window rate-limit reset-countdown agents windows crash-free zero-dependency catppuccin deepseek minimax glm thinking-depth reasoning-effort effort-level fable opus-limit top-model weekly-gauge
 -->
@@ -101,12 +101,12 @@ Inside Claude Code:
 ### Upgrade
 
 ```
-/plugin marketplace update cc-hud      # refresh the marketplace manifest
-/plugin update cc-hud@cc-hud           # download the new version into the plugin cache
-/reload-plugins                        # hot-load it
+/plugin marketplace update cc-hud      # opens the plugin panel and refreshes the marketplace — plugins installed from it are updated too
+/reload-plugins                        # load the new version into the running session
 ```
 
-Run them one at a time — `/plugin …` commands are interactive and cannot be chained. (If the `cc-hud` marketplace has `autoUpdate: true` in `~/.claude/settings.json`, Claude Code pulls new versions on startup and only `/reload-plugins` is needed.)
+> [!NOTE]
+> There is **no** `/plugin update …` slash command (an unknown word after `/plugin` just opens the panel). If the **Installed** tab still shows the old version, select cc-hud there and choose **Update now**, or run `claude plugin update cc-hud@cc-hud` in a terminal and restart Claude Code. Third-party marketplaces do **not** auto-update by default; turn it on in `/plugin` → **Marketplaces** → *Enable auto-update* (or `extraKnownMarketplaces.cc-hud.autoUpdate: true` in `~/.claude/settings.json`) and Claude Code fetches new versions shortly after the first message of a session, then prompts `Run /reload-plugins to apply`.
 
 > [!NOTE]
 > The launcher resolves the currently installed cc-hud version on each tick, so upgrades need **no re-setup**. Upgrading from **≤0.4.x**? Re-run `/cc-hud:setup` **once** — it auto-detects the old version-pinned path and migrates it to the launcher.
@@ -159,7 +159,7 @@ Add to `~/.claude/settings.json`:
 }
 ```
 
-`/cc-hud:setup` leaves a from-source command like this untouched — the launcher only resolves marketplace installs.
+`/cc-hud:setup` leaves a from-source command like this untouched (it only migrates version-pinned paths under `~/.claude/plugins/cache/`) — the launcher resolves marketplace installs, not checkouts.
 
 </details>
 
@@ -213,9 +213,11 @@ cc-hud shows your current **thinking depth** (the model's reasoning effort — `
 
 - **`cc-hud · main*`** — current folder and git branch; `*` marks uncommitted tracked changes. Outside a repo (or on a detached HEAD) only the folder shows. Worktree sessions reuse the branch Claude Code already reports.
 - **`spend:$12/$50 (3d)`** — the gateway spend limit (`rate_limits.spend_limit`), when your org sets one. Falls back to a bare percentage if the dollar figures aren't exposed.
-- **`$0.42`** — session cost estimate from Claude Code (`cost.total_cost_usd`); set `CC_HUD_NO_COST=1` to hide it.
+- **`$0.42`** — session cost estimate from Claude Code (`cost.total_cost_usd`); hidden while it is $0; set `CC_HUD_NO_COST=1` to hide it always.
+- **`—%`** in the context bar — Claude Code has not reported usage yet (start of session, or right after `/compact` until the next API call); it is not an empty context.
+- **Branch markers** — `*` = uncommitted changes; `?` = `git status` failed or exceeded its 800 ms budget (unknown, never shown as clean).
 - Any other `rate_limits` window Claude Code adds later is listed as-is (`one day:7%`) rather than dropped.
-- **Subagents** are detected from the last 64 KB of the transcript. A very large tool result can push a still-running `Agent` call out of that window; if you want per-subagent rows regardless, Claude Code's own `subagentStatusLine` setting complements cc-hud.
+- **Subagents** (up to three shown) are detected from the last 64 KB of the transcript. A very large tool result can push a still-running `Agent` call out of that window; if you want per-subagent rows regardless, Claude Code's own `subagentStatusLine` setting complements cc-hud.
 
 ### Environment variables
 
@@ -226,7 +228,9 @@ cc-hud shows your current **thinking depth** (the model's reasoning effort — `
 | `CC_HUD_NO_COST=1` | Hide the session-cost segment. |
 | `CC_HUD_EXTRA_FILE=<path>` | Show the file's first line as an extra segment (see [Other backends](#other-backends)). |
 | `CC_HUD_CURL=<path>` | curl binary for the proxy / WAF fallback (default `curl`). |
-| `HTTPS_PROXY` / `https_proxy` / `ALL_PROXY` | Proxy for the curl fallback only — native `fetch` ignores them. |
+| `HTTPS_PROXY` / `https_proxy` / `ALL_PROXY` / `all_proxy` | Proxy for the curl fallback only — native `fetch` ignores them. |
+| `ANTHROPIC_BASE_URL` | Read-only: decides the backend (official gauge vs DeepSeek / GLM / MiniMax detection by substring, see below). |
+| `ANTHROPIC_AUTH_TOKEN` | Read-only: the API key used to query a third-party backend's balance / quota endpoint. |
 
 Boolean switches treat `0`, `false` and an empty value as off.
 
@@ -234,7 +238,7 @@ Boolean switches treat `0`, `false` and an empty value as off.
 
 ## Auto-detected Backends
 
-cc-hud detects your `ANTHROPIC_BASE_URL` and pulls **balance / quota** automatically — **zero configuration**, cached locally for 5 minutes. Model names are beautified along the way (`claude-fable-5` → `Fable 5`, `glm-5.2[1m]` → `GLM 5.2 (1M)`, `MiniMax-M3` → `MiniMax M3`, etc.).
+cc-hud detects your `ANTHROPIC_BASE_URL` and pulls **balance / quota** automatically — **zero configuration**, cached locally for 5 minutes. Model names are beautified along the way (`claude-fable-5` → `Fable 5`, `glm-5.2[1m]` → `GLM 5.2` with `(1M)` shown after the context bar, `MiniMax-M3` → `MiniMax M3`, etc.).
 
 <table>
 <tr>
@@ -249,7 +253,7 @@ cc-hud detects your `ANTHROPIC_BASE_URL` and pulls **balance / quota** automatic
 </tr>
 <tr>
   <td><b>MiniMax</b></td>
-  <td><code>https://api.minimaxi.com/anthropic</code></td>
+  <td><code>https://api.minimaxi.com/anthropic</code><br/><code>https://api.minimax.io/anthropic</code></td>
   <td>Token Plan — <code>5h:17% (1.1h) │ 7d:2% (6.4d)</code></td>
 </tr>
 <tr>
@@ -269,6 +273,8 @@ Example output:
 
 Works with `dscode` / `mmcode` / `glmcode` / `ZCode` or any launcher that exports `ANTHROPIC_BASE_URL` + `ANTHROPIC_AUTH_TOKEN`.
 
+**Details.** Detection is by substring of `ANTHROPIC_BASE_URL` (`deepseek`, `bigmodel.cn` / `api.z.ai`, `minimax` — `minimaxi.com` selects the CN endpoint, anything else the global one). Results are cached in `~/.cache/cc-hud/` (`ds-balance.json`, `glm-balance.json`, `mmx-quota.json`; the official gauge uses `claude-plan.json`). On a cache miss these three collectors fetch **inline** with a 1.2 s budget, so a tick can take up to ~1.2 s once every 5 minutes; a hung endpoint only drops its own segment. When several extras apply, `CC_HUD_EXTRA_FILE` wins over DeepSeek, which wins over GLM.
+
 ### Other backends
 
 Set the `CC_HUD_EXTRA_FILE` env var to any file whose first line is the text to display. See `scripts/ds-balance-cache.sh` for a reference cache implementation.
@@ -280,7 +286,7 @@ Set the `CC_HUD_EXTRA_FILE` env var to any file whose first line is the text to 
 ```bash
 npm install
 npm run build      # compile TypeScript → dist/
-npm test           # 227 tests (node:test)
+npm test           # 227 tests (node:test; running the .ts tests needs Node ≥ 22.6 for type stripping — the shipped dist/ runs on ≥ 18)
 ```
 
 Project layout:
