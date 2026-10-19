@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -214,6 +214,18 @@ describe('glm balance', () => {
       const { getGlmBalance } = await importGlm();
       assert.equal(await getGlmBalance(), null);
     });
+
+    it('aborts a hanging endpoint within the 1.2s budget — well before the 2s hard exit', async () => {
+      globalThis.fetch = ((_url: unknown, init?: RequestInit) => new Promise((_, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+      })) as typeof fetch;
+      const { getGlmBalance } = await importGlm();
+      const t0 = Date.now();
+      const r = await getGlmBalance();
+      const ms = Date.now() - t0;
+      assert.equal(r, null);
+      assert.ok(ms >= 1000 && ms < 1900, `took ${ms}ms`);
+    });
   });
 
   // ─── Cache ────────────────────────────────────────────────────
@@ -231,6 +243,8 @@ describe('glm balance', () => {
       const r2 = await getGlmBalance();
       assert.equal(fetchCalls.length, 1, 'second call should hit cache');
       assert.deepEqual(r1, r2);
+      // atomic write: no temp file left next to the cache
+      assert.deepEqual(readdirSync(join(tmpHome, '.cache', 'cc-hud')).filter(f => f.includes('.tmp-')), []);
     });
 
     it('falls back to stale cache on fetch failure', async () => {

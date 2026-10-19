@@ -101,7 +101,7 @@ export interface TopModelUsage {
 export interface WorkspaceInfo {
   name: string;
   branch: string | null;
-  dirty: boolean;
+  dirty: boolean | null; // null = git status failed / timed out (unknown, not clean)
 }
 
 // A rate window cc-hud has no dedicated slot for (future stdin additions)

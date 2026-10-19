@@ -1,6 +1,6 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { execFile } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -17,10 +17,12 @@ const strip = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, '');
 interface RunResult { out: string; code: number | null; ms: number }
 
 function run(stdin: string, home: string, extraEnv: Record<string, string> = {}): Promise<RunResult> {
-  const env: NodeJS.ProcessEnv = { ...process.env, HOME: home, USERPROFILE: home, CC_HUD_NO_REFRESH: '1', ...extraEnv };
+  const env: NodeJS.ProcessEnv = { ...process.env, HOME: home, USERPROFILE: home, CC_HUD_NO_REFRESH: '1' };
   delete env.ANTHROPIC_BASE_URL;
   delete env.ANTHROPIC_AUTH_TOKEN;
   delete env.CC_HUD_EXTRA_FILE;
+  delete env.CLAUDE_CONFIG_DIR;
+  Object.assign(env, extraEnv);
   const t0 = Date.now();
   return new Promise(resolve => {
     const child = execFile(process.execPath, [ENTRY], { env, encoding: 'utf8', timeout: 10_000 }, (err, stdout) => {
@@ -73,6 +75,68 @@ describe('dist/index.js end-to-end', () => {
     const r = await run('{not json', home);
     assert.equal(r.code, 0);
     assert.equal(r.out, '[Claude] ░░░░░░░░░░ —%');
+  });
+
+  it('JSON that is not an object (null / array / scalar) still prints exactly one line', async () => {
+    for (const stdin of ['null', '[]', '42', '"str"']) {
+      const r = await run(stdin, home);
+      assert.equal(r.code, 0, stdin);
+      assert.equal(r.out, '[Claude] ░░░░░░░░░░ —%', stdin);
+    }
+  });
+
+  it('derives the context percentage from token counts when used_percentage is absent', async () => {
+    const r = await run(JSON.stringify({
+      model: { id: 'claude-fable-5-1' },
+      context_window: {
+        used_percentage: null,
+        context_window_size: 200_000,
+        current_usage: { input_tokens: 50_000, cache_creation_input_tokens: 10_000, cache_read_input_tokens: 40_000, output_tokens: 999 },
+      },
+    }), home);
+    assert.equal(r.out, '[Fable 5.1] █████░░░░░ 50%');
+  });
+
+  it('prefers used_percentage over the token counts when both are present', async () => {
+    const r = await run(JSON.stringify({
+      model: { id: 'claude-fable-5-1' },
+      context_window: { used_percentage: 12, context_window_size: 200_000, current_usage: { input_tokens: 100_000 } },
+    }), home);
+    assert.equal(r.out, '[Fable 5.1] █▎░░░░░░░░ 12%');
+  });
+
+  it('ignores non-numeric rate-limit percentages instead of rendering NaN', async () => {
+    const r = await run(JSON.stringify({
+      model: { id: 'claude-fable-5-1' },
+      context_window: { used_percentage: 10, current_usage: { input_tokens: 1 } },
+      rate_limits: { five_hour: { used_percentage: '18' }, seven_day: { used_percentage: 2 } },
+    }), home);
+    assert.equal(r.out, '[Fable 5.1] █░░░░░░░░░ 10% │ 7d:2%');
+  });
+
+  it('an empty rate_limits {} neither writes the gauge placeholder nor shows any window', async () => {
+    const h = mkdtempSync(join(tmpdir(), 'cc-hud-e2e-rl-'));
+    try {
+      const r = await run(JSON.stringify({
+        model: { id: 'claude-fable-5-1' },
+        context_window: { used_percentage: 10, current_usage: { input_tokens: 1 } },
+        rate_limits: {},
+      }), h);
+      assert.equal(r.out, '[Fable 5.1] █░░░░░░░░░ 10%');
+      assert.ok(!existsSync(join(h, '.cache', 'cc-hud', 'claude-plan.json')), 'placeholder must not be written');
+    } finally {
+      rmSync(h, { recursive: true, force: true });
+    }
+  });
+
+  it('CC_HUD_EXTRA_FILE shows only the first line, control characters stripped', async () => {
+    const extra = join(home, 'extra.txt');
+    writeFileSync(extra, '¥9.\x1b[31m50\nsecond line\n');
+    const r = await run(JSON.stringify({
+      model: { id: 'claude-fable-5-1' },
+      context_window: { used_percentage: 10, current_usage: { input_tokens: 1 } },
+    }), home, { CC_HUD_EXTRA_FILE: extra });
+    assert.equal(r.out, '[Fable 5.1] █░░░░░░░░░ 10% │ ¥9.[31m50');
   });
 
   it('current_usage null (after /compact) shows —% not 0%', async () => {
@@ -132,6 +196,17 @@ describe('dist/index.js end-to-end', () => {
       cost: { total_cost_usd: 3 },
     }), home, { CC_HUD_NO_COST: '1' });
     assert.equal(r.out, '[Fable 5.1] █░░░░░░░░░ 10%');
+  });
+
+  it('CC_HUD_NO_COST=0 / false / empty leave the cost segment on', async () => {
+    for (const v of ['0', 'false', '']) {
+      const r = await run(JSON.stringify({
+        model: { id: 'claude-fable-5-1' },
+        context_window: { used_percentage: 10, current_usage: { input_tokens: 1 } },
+        cost: { total_cost_usd: 3 },
+      }), home, { CC_HUD_NO_COST: v });
+      assert.equal(r.out, '[Fable 5.1] █░░░░░░░░░ 10% │ $3.00', `CC_HUD_NO_COST=${JSON.stringify(v)}`);
+    }
   });
 
   it('finishes well inside the 2s hard timeout', async () => {

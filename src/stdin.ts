@@ -14,7 +14,12 @@ export async function readStdin(): Promise<StdinData> {
   if (!raw.trim()) return {};
 
   try {
-    return JSON.parse(raw) as StdinData;
+    // `null`, a number, a string or an array parse fine but aren't a payload —
+    // treat anything that isn't a plain object as "no data".
+    const parsed: unknown = JSON.parse(raw);
+    return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as StdinData)
+      : {};
   } catch {
     return {};
   }

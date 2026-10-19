@@ -59,4 +59,19 @@ describe('getWorkspace', () => {
     assert.equal(r!.branch, 'feature/x');
     assert.equal(r!.name, 'my-repo');
   });
+
+  it('reports dirty as unknown (null), not clean, when git status fails', async () => {
+    // Branch known from stdin, but the directory is not a repo → status fails
+    assert.deepEqual(await getWorkspace(plain, 'main'), { name: 'plain', branch: 'main', dirty: null });
+  });
+
+  it('an existing index.lock neither blocks the tick nor dirties the tree', async () => {
+    const lock = join(repo, '.git', 'index.lock');
+    writeFileSync(lock, '');
+    try {
+      assert.deepEqual(await getWorkspace(repo), { name: 'my-repo', branch: 'main', dirty: false });
+    } finally {
+      rmSync(lock, { force: true });
+    }
+  });
 });

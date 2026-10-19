@@ -1,9 +1,12 @@
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { writeFileAtomic } from './cache.js';
 const CACHE_DIR = '.cache/cc-hud';
 const TTL = 5 * 60 * 1000; // 5 min — same as balance.ts
-const TIMEOUT_MS = 2000;
+// Inline fetch budget — must end well before the 2s hard exit in index.ts
+// (which started earlier), or a hanging endpoint blanks the whole bar.
+const TIMEOUT_MS = 1200;
 function cacheFile() {
     return join(homedir(), CACHE_DIR, 'mmx-quota.json');
 }
@@ -28,7 +31,7 @@ function readCache() {
 function writeCache(payload) {
     try {
         mkdirSync(join(homedir(), CACHE_DIR), { recursive: true });
-        writeFileSync(cacheFile(), JSON.stringify({ payload, ts: Date.now() }));
+        writeFileAtomic(cacheFile(), JSON.stringify({ payload, ts: Date.now() }));
     }
     catch { /* best effort */ }
 }
@@ -39,12 +42,14 @@ function aggregatePlan(remains) {
         return null;
     const active = remains.find(m => m.current_interval_status === 1) ?? remains[0];
     const now = Date.now();
-    return {
+    const quota = {
         fiveHourUsedPct: Math.max(0, 100 - active.current_interval_remaining_percent),
         fiveHourResetsAt: now + active.remains_time,
         sevenDayUsedPct: Math.max(0, 100 - active.current_weekly_remaining_percent),
         sevenDayResetsAt: now + active.weekly_remains_time,
     };
+    // A missing / non-numeric field would otherwise leak NaN into the bar
+    return Object.values(quota).every(Number.isFinite) ? quota : null;
 }
 async function fetchQuota(apiKey) {
     const ctrl = new AbortController();

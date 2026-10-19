@@ -312,4 +312,44 @@ describe('render', () => {
   it('omits cost when null', () => {
     assert.ok(!strip(render(makeData())).includes('$'));
   });
+
+  // ─── hardening: control characters / NaN / unknown git status ───
+
+  it('strips control characters from free-text fields so the line stays single-line', () => {
+    const raw = render(makeData({
+      model: 'Op\x1b[31mus',
+      thinkingDepth: 'hi\ngh',
+      workspace: { name: 'cc\x07-hud', branch: 'ma\rin', dirty: false },
+      agents: [{ id: '1', type: 'exp\nlore', model: 'ha\x00iku', status: 'running' }],
+      extra: '¥3\n.77',
+      topModel: { name: 'Fa\x7fble', percent: 46, resetsAt: null },
+      extraLimits: [{ label: 'one\nday', percent: 7, resetsAt: null }],
+    }));
+    assert.ok(!raw.includes('\n') && !raw.includes('\r'));
+    const out = strip(raw);
+    assert.ok(!/[\x00-\x1f\x7f]/.test(out), 'no control characters survive');
+    assert.match(out, /\[Op\[31mus · High\]/);
+    assert.match(out, /◐ explore \[haiku\]/);
+    assert.match(out, /Fable:46%/);
+    assert.match(out, /oneday:7%/);
+    assert.match(out, /cc-hud · main/);
+    assert.match(out, /¥3\.77/);
+  });
+
+  it('omits a rate segment whose percent is NaN', () => {
+    const out = strip(render(makeData({ fiveHourPercent: NaN, sevenDayPercent: 10 })));
+    assert.ok(!out.includes('5h:'));
+    assert.match(out, /7d:10%/);
+  });
+
+  it('renders a NaN context percentage as —%', () => {
+    const out = strip(render(makeData({ contextPercent: NaN })));
+    assert.match(out, /—%/);
+    assert.ok(!out.includes('NaN'));
+  });
+
+  it('marks an unknown git status with ? rather than showing a clean branch', () => {
+    const out = strip(render(makeData({ workspace: { name: 'cc-hud', branch: 'main', dirty: null } })));
+    assert.match(out, /cc-hud · main\?/);
+  });
 });

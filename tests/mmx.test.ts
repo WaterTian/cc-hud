@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -183,6 +183,14 @@ describe('mmx quota', () => {
       assert.equal(result!.sevenDayUsedPct, 40);
     });
 
+    it('returns null instead of NaN when a percentage field is missing or non-numeric', async () => {
+      nextResponse = new Response(JSON.stringify({
+        model_remains: [{ model_name: 'general', remains_time: 1000, current_weekly_remaining_percent: 'n/a', weekly_remains_time: 2000 }],
+      }));
+      const { getMmxQuota } = await importMmx();
+      assert.equal(await getMmxQuota(), null);
+    });
+
     it('returns null for empty model_remains', async () => {
       nextResponse = new Response(JSON.stringify({ model_remains: [] }));
       const { getMmxQuota } = await importMmx();
@@ -237,6 +245,18 @@ describe('mmx quota', () => {
       const { getMmxQuota } = await importMmx();
       assert.equal(await getMmxQuota(), null);
     });
+
+    it('aborts a hanging endpoint within the 1.2s budget — well before the 2s hard exit', async () => {
+      globalThis.fetch = ((_url: unknown, init?: RequestInit) => new Promise((_, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(new Error('aborted')));
+      })) as typeof fetch;
+      const { getMmxQuota } = await importMmx();
+      const t0 = Date.now();
+      const r = await getMmxQuota();
+      const ms = Date.now() - t0;
+      assert.equal(r, null);
+      assert.ok(ms >= 1000 && ms < 1900, `took ${ms}ms`);
+    });
   });
 
   // ─── Cache ────────────────────────────────────────────────────
@@ -262,6 +282,8 @@ describe('mmx quota', () => {
       const r2 = await getMmxQuota();
       assert.equal(fetchCalls.length, 1, 'second call should hit cache');
       assert.deepEqual(r1, r2);
+      // atomic write: no temp file left next to the cache
+      assert.deepEqual(readdirSync(join(tmpHome, '.cache', 'cc-hud')).filter(f => f.includes('.tmp-')), []);
     });
 
     it('falls back to stale cache on fetch failure', async () => {

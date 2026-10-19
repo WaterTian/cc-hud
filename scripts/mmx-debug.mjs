@@ -51,12 +51,13 @@ function aggregatePlan(remains) {
   if (remains.length === 0) return null;
   const active = remains.find(m => m.current_interval_status === 1) ?? remains[0];
   const now = Date.now();
-  return {
+  const quota = {
     fiveHourUsedPct: Math.max(0, 100 - active.current_interval_remaining_percent),
     fiveHourResetsAt: now + active.remains_time,
     sevenDayUsedPct: Math.max(0, 100 - active.current_weekly_remaining_percent),
     sevenDayResetsAt: now + active.weekly_remains_time,
   };
+  return Object.values(quota).every(Number.isFinite) ? quota : null;
 }
 
 // 打印每条记录的概要

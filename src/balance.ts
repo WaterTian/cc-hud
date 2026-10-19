@@ -1,27 +1,31 @@
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { writeFileAtomic } from './cache.js';
 
-const CACHE_DIR = join(homedir(), '.cache', 'cc-hud');
-const CACHE_FILE = join(CACHE_DIR, 'ds-balance.json');
+const cacheDir = () => join(homedir(), '.cache', 'cc-hud');
+const cacheFile = () => join(cacheDir(), 'ds-balance.json');
 const TTL = 5 * 60 * 1000; // 5 min
+// Inline fetch budget — must end well before the 2s hard exit in index.ts
+// (which started earlier), or a hanging endpoint blanks the whole bar.
+const TIMEOUT_MS = 1200;
 
 function readCache(): { balance: string; ts: number } | null {
   try {
-    return JSON.parse(readFileSync(CACHE_FILE, 'utf8'));
+    return JSON.parse(readFileSync(cacheFile(), 'utf8'));
   } catch { return null; }
 }
 
 function writeCache(balance: string): void {
   try {
-    mkdirSync(CACHE_DIR, { recursive: true });
-    writeFileSync(CACHE_FILE, JSON.stringify({ balance, ts: Date.now() }));
+    mkdirSync(cacheDir(), { recursive: true });
+    writeFileAtomic(cacheFile(), JSON.stringify({ balance, ts: Date.now() }));
   } catch {}
 }
 
 async function fetchBalance(apiKey: string): Promise<string | null> {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 2000);
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
     const resp = await fetch('https://api.deepseek.com/user/balance', {
       headers: { Authorization: `Bearer ${apiKey}` },

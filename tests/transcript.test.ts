@@ -107,6 +107,31 @@ describe('parseTranscript', () => {
     assert.equal(agents.length, 1);
   });
 
+  // ─── 64 KB tail window boundary ───────────────────────────────
+
+  const TAIL = 64 * 1024;
+  // Exactly TAIL bytes (ASCII): two complete Agent lines, then a filler line the
+  // pre-filter skips, padded so the window starts right at the first Agent line.
+  const buildTail = (): string => {
+    const head = JSON.stringify(agentUse('a1', 'explore')) + '\n' + JSON.stringify(agentUse('a2', 'general-purpose')) + '\n';
+    const prefix = '{"type":"progress","pad":"';
+    const tail = head + prefix + 'x'.repeat(TAIL - head.length - prefix.length - 2) + '"}';
+    assert.equal(Buffer.byteLength(tail), TAIL);
+    return tail;
+  };
+
+  it('keeps the first line when the tail window starts exactly on a line boundary', async () => {
+    writeFileSync(file, 'y'.repeat(100) + '\n' + buildTail());
+    const { agents } = await parseTranscript(file);
+    assert.deepEqual(agents.map(a => a.id), ['a1', 'a2']);
+  });
+
+  it('drops the leading partial line when the tail window starts mid-line', async () => {
+    writeFileSync(file, 'y'.repeat(100) + buildTail()); // a1's line is cut in half
+    const { agents } = await parseTranscript(file);
+    assert.deepEqual(agents.map(a => a.id), ['a2']);
+  });
+
   it('ignores a tool_result whose Agent tool_use fell outside the tail window', async () => {
     // Only the result line is in the window — must not resurrect or crash
     const { agents } = await parseTranscript(write([

@@ -1,8 +1,9 @@
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, renameSync, unlinkSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { envFlag } from './env.js';
 
 // One cache discipline for every collector that goes through the detached
 // refresher: the statusline tick only ever READS ~/.cache/cc-hud/<name>.json;
@@ -39,10 +40,22 @@ export function readCache<T>(name: string): CacheEntry<T> | null {
   } catch { return null; }
 }
 
+// Write via a per-process temp file + rename so a reader (another tick, the
+// refresher) never sees a half-written JSON file. Shared by every cache writer.
+export function writeFileAtomic(path: string, data: string): void {
+  const tmp = `${path}.tmp-${process.pid}`;
+  try {
+    writeFileSync(tmp, data);
+    renameSync(tmp, path);
+  } catch {
+    try { unlinkSync(tmp); } catch { /* already gone */ }
+  }
+}
+
 export function writeCache<T>(name: string, entry: CacheEntry<T>): void {
   try {
     mkdirSync(dir(), { recursive: true });
-    writeFileSync(file(name), JSON.stringify(entry));
+    writeFileAtomic(file(name), JSON.stringify(entry));
   } catch { /* best effort */ }
 }
 
@@ -59,7 +72,7 @@ export function storeRefresh<T>(name: string, fresh: T | null): void {
 }
 
 function spawnRefresh(kind: RefreshKind): void {
-  if (process.env.CC_HUD_NO_REFRESH) return;
+  if (envFlag('CC_HUD_NO_REFRESH')) return;
   try {
     const child = spawn(
       process.execPath,

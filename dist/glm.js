@@ -1,9 +1,12 @@
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { writeFileAtomic } from './cache.js';
 const CACHE_DIR = '.cache/cc-hud';
 const TTL = 5 * 60 * 1000; // 5 min — same as balance.ts / mmx.ts
-const TIMEOUT_MS = 2000;
+// Inline fetch budget — must end well before the 2s hard exit in index.ts
+// (which started earlier), or a hanging endpoint blanks the whole bar.
+const TIMEOUT_MS = 1200;
 function cacheFile() {
     return join(homedir(), CACHE_DIR, 'glm-balance.json');
 }
@@ -28,7 +31,7 @@ function readCache() {
 function writeCache(balance) {
     try {
         mkdirSync(join(homedir(), CACHE_DIR), { recursive: true });
-        writeFileSync(cacheFile(), JSON.stringify({ balance, ts: Date.now() }));
+        writeFileAtomic(cacheFile(), JSON.stringify({ balance, ts: Date.now() }));
     }
     catch { /* best effort */ }
 }

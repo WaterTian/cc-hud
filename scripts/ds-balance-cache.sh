@@ -4,7 +4,7 @@
 # Designed to run periodically (SessionStart hook / cron / manual)
 #
 # Usage:
-#   CC_HUD_EXTRA_FILE="$HOME/.cache/cc-hud/ds-balance.txt" bash ds-hud-balance-cache.sh
+#   CC_HUD_EXTRA_FILE="$HOME/.cache/cc-hud/ds-balance.txt" bash ds-balance-cache.sh
 #   or set DS_API_KEY env var, or it falls back to reading ANTHROPIC_AUTH_TOKEN
 
 set -euo pipefail

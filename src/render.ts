@@ -23,6 +23,11 @@ const BAR_WIDTH = 10;
 const BLOCKS = [' ', '▏', '▎', '▍', '▌', '▋', '▊', '▉', '█'];
 const TRACK_CHAR = '░';
 
+// Free-text fields (model / effort / branch / folder / agent type …) come from
+// stdin, the transcript, git and third-party APIs: strip control characters
+// so a stray newline or escape sequence can't break the single status line.
+const clean = (s: string) => s.replace(/[\x00-\x1f\x7f]/g, '');
+
 function color(percent: number): string {
   if (percent <= 50) return GREEN;
   if (percent <= 70) return YELLOW;
@@ -35,13 +40,14 @@ const EFFORT_LABELS: Record<string, string> = {
   low: 'Low', medium: 'Medium', high: 'High', xhigh: 'XHigh', max: 'Max',
 };
 function effortLabel(raw: string): string {
-  return EFFORT_LABELS[raw] ?? raw.charAt(0).toUpperCase() + raw.slice(1);
+  const level = clean(raw);
+  return EFFORT_LABELS[level] ?? level.charAt(0).toUpperCase() + level.slice(1);
 }
 
 function progressBar(percent: number | null): string {
   // null = current_usage not yet populated (start of session or just after /compact)
   // — render an empty track + dim em-dash so it doesn't look like context reset.
-  if (percent === null) {
+  if (percent === null || !Number.isFinite(percent)) {
     return `${SURFACE}${TRACK_CHAR.repeat(BAR_WIDTH)}${RESET} ${OVERLAY}—%${RESET}`;
   }
 
@@ -90,10 +96,10 @@ function countdownSuffix(resetsAt: number | null): string {
 }
 
 function rateSegment(label: string, percent: number | null, resetsAt: number | null): string | null {
-  if (percent == null) return null;
+  if (percent == null || !Number.isFinite(percent)) return null;
   const clamped = Math.round(Math.max(0, Math.min(100, percent)));
   const c = color(clamped);
-  return `${OVERLAY}${label}:${RESET}${c}${clamped}%${RESET}${countdownSuffix(resetsAt)}`;
+  return `${OVERLAY}${clean(label)}:${RESET}${c}${clamped}%${RESET}${countdownSuffix(resetsAt)}`;
 }
 
 // Gateway spend cap: `$12/$50` when the dollar figures are present, else the
@@ -112,8 +118,8 @@ function spendSegment(s: RenderData['spendLimit']): string | null {
 function agentSegment(agents: RenderData['agents']): string | null {
   if (agents.length === 0) return null;
   const parts = agents.slice(0, 3).map(a => {
-    const model = a.model ? ` ${OVERLAY}[${a.model}]${RESET}` : '';
-    return `${TEAL}◐${RESET} ${TEXT}${a.type}${RESET}${model}`;
+    const model = a.model ? ` ${OVERLAY}[${clean(a.model)}]${RESET}` : '';
+    return `${TEAL}◐${RESET} ${TEXT}${clean(a.type)}${RESET}${model}`;
   });
   return parts.join(' ');
 }
@@ -130,7 +136,7 @@ export function render(data: RenderData): string {
   // Model + context bar (variant suffix lives here — it describes context capacity)
   const variant = data.modelVariant ? ` ${OVERLAY}(${data.modelVariant})${RESET}` : '';
   const depth = data.thinkingDepth ? ` ${OVERLAY}· ${effortLabel(data.thinkingDepth)}${RESET}` : '';
-  segments.push(`${OVERLAY}[${RESET}${BLUE}${data.model}${RESET}${depth}${OVERLAY}]${RESET} ${progressBar(data.contextPercent)}${variant}`);
+  segments.push(`${OVERLAY}[${RESET}${BLUE}${clean(data.model)}${RESET}${depth}${OVERLAY}]${RESET} ${progressBar(data.contextPercent)}${variant}`);
 
   // Agents (if any)
   const agentStr = agentSegment(data.agents);
@@ -141,7 +147,7 @@ export function render(data: RenderData): string {
   // "couldn't fetch" never reads as "fresh".
   const rTop = data.topModel
     ? rateSegment(
-        `${data.topModelStale ? '~' : ''}${data.topModel.name}`,
+        `${data.topModelStale ? '~' : ''}${clean(data.topModel.name)}`,
         data.topModel.percent,
         sameReset(data.topModel.resetsAt, data.sevenDayResetsAt) ? null : data.topModel.resetsAt,
       )
@@ -157,16 +163,17 @@ export function render(data: RenderData): string {
     segments.push(rates.join(` ${OVERLAY}│${RESET} `));
   }
 
-  // Workspace: folder · branch (dirty tree marked with *)
+  // Workspace: folder · branch (dirty tree marked with *, unknown status with ?)
   if (data.workspace) {
     const w = data.workspace;
-    const branch = w.branch ? `${OVERLAY} · ${RESET}${GREEN}${w.branch}${w.dirty ? '*' : ''}${RESET}` : '';
-    segments.push(`${SAPPHIRE}${w.name}${RESET}${branch}`);
+    const mark = w.dirty ? '*' : w.dirty === null ? `${OVERLAY}?` : '';
+    const branch = w.branch ? `${OVERLAY} · ${RESET}${GREEN}${clean(w.branch)}${mark}${RESET}` : '';
+    segments.push(`${SAPPHIRE}${clean(w.name)}${RESET}${branch}`);
   }
 
   // Extra (generic pluggable segment, e.g. balance for non-Anthropic backends)
   if (data.extra) {
-    segments.push(`${TEAL}${data.extra}${RESET}`);
+    segments.push(`${TEAL}${clean(data.extra)}${RESET}`);
   }
 
   // Session cost (client-side list-price estimate from stdin `cost`)

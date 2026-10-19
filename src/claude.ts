@@ -22,6 +22,9 @@ export interface ClaudePlan {
 // Cache payload shape (kept as an object so older entries stay readable)
 interface PlanPayload { topModel: TopModelUsage | null }
 
+// Claude Code's config dir: CLAUDE_CONFIG_DIR when set, else ~/.claude
+const configDir = () => process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude');
+
 // Critical isolation: third-party backends (DeepSeek / GLM / MiniMax) skip the whole module
 function isAnthropic(): boolean {
   const base = process.env.ANTHROPIC_BASE_URL;
@@ -41,7 +44,7 @@ function readAccessToken(): string | null {
   // an expired file means the Keychain copy is the same account, same expiry.
   let fileRaw: string | null = null;
   try {
-    fileRaw = readFileSync(join(homedir(), '.claude', '.credentials.json'), 'utf8');
+    fileRaw = readFileSync(join(configDir(), '.credentials.json'), 'utf8');
   } catch { /* no file — fall through */ }
   if (fileRaw !== null) {
     try { return tokenFromCreds(fileRaw); } catch { return null; }

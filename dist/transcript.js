@@ -8,15 +8,28 @@ async function readTail(filePath) {
     const fd = await open(filePath, 'r');
     try {
         const start = Math.max(0, info.size - TAIL_BYTES);
-        const len = info.size - start;
+        // Read one byte before the window (when there is one): if it is '\n' the
+        // window begins on a line boundary and its first line is complete.
+        const from = start > 0 ? start - 1 : 0;
+        const len = info.size - from;
         const buf = Buffer.alloc(len);
-        await fd.read(buf, 0, len, start);
-        const text = buf.toString('utf8');
-        if (start > 0) {
-            const nl = text.indexOf('\n');
-            return nl >= 0 ? text.slice(nl + 1) : '';
+        let got = 0;
+        // A single read may come back short — keep going until the window is full
+        while (got < len) {
+            const { bytesRead } = await fd.read(buf, got, len - got, from + got);
+            if (bytesRead === 0)
+                break;
+            got += bytesRead;
         }
-        return text;
+        const data = buf.subarray(0, got);
+        if (start === 0)
+            return data.toString('utf8');
+        const text = data.subarray(1).toString('utf8');
+        if (data[0] === 0x0a)
+            return text;
+        // Window starts mid-line: drop that partial first line
+        const nl = text.indexOf('\n');
+        return nl >= 0 ? text.slice(nl + 1) : '';
     }
     finally {
         await fd.close();

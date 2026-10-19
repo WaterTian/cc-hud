@@ -18,7 +18,8 @@ function tryParse(raw: string): ModelName | null {
     };
   }
 
-  const dm = raw.match(/^deepseek-(v\d+(?:-\w+))(?:\[(\w+)\])?$/);
+  // deepseek-v4 / deepseek-v4-pro / deepseek-chat / deepseek-reasoner
+  const dm = raw.match(/^deepseek-(v\d+(?:-\w+)?|chat|reasoner)(?:\[(\w+)\])?$/i);
   if (dm) {
     const v = dm[1].replace(/^v/, 'V').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     return { name: `DeepSeek ${v}`, variant: dm[2] ? dm[2].toUpperCase() : null };

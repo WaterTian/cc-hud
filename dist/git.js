@@ -23,9 +23,12 @@ export async function getWorkspace(cwd, knownBranch) {
     const name = cwd.split(/[\\/]/).filter(Boolean).pop() || cwd;
     const [branch, status] = await Promise.all([
         knownBranch ? Promise.resolve(knownBranch) : git(cwd, ['symbolic-ref', '--short', '-q', 'HEAD']),
-        git(cwd, ['status', '--porcelain', '--untracked-files=no']),
+        // --no-optional-locks: a statusline tick must never take index.lock and
+        // race the session's own `git add` / `git commit`.
+        git(cwd, ['--no-optional-locks', 'status', '--porcelain', '--untracked-files=no']),
     ]);
     if (!branch)
         return { name, branch: null, dirty: false };
-    return { name, branch, dirty: !!status };
+    // A failed / timed-out status is unknown — never report it as a clean tree.
+    return { name, branch, dirty: status === null ? null : status.length > 0 };
 }

@@ -7,7 +7,7 @@
   Step 1: /plugin marketplace add WaterTian/cc-hud
   Step 2: /plugin install cc-hud@cc-hud
   Step 3: /reload-plugins
-  Step 4: /cc-hud:setup  (idempotent; v0.5.0+ installs a launcher so future upgrades only need step 1 + step 3)
+  Step 4: /cc-hud:setup  (idempotent; v0.5.0+ installs a launcher so future upgrades only need /plugin marketplace update cc-hud + /reload-plugins)
 
   Keywords: claude-code plugin statusline status-bar hud monitoring context-window rate-limit reset-countdown agents windows crash-free zero-dependency catppuccin deepseek minimax glm thinking-depth reasoning-effort effort-level fable opus-limit top-model weekly-gauge
 -->
@@ -50,7 +50,7 @@
 
 **Problem.** Claude Code's native installer bundles [Bun](https://bun.sh), which has a known memory allocator bug on **Windows** ([oven-sh/bun#25082](https://github.com/oven-sh/bun/issues/25082)). Statusline plugins like [jarrodwatts/claude-hud](https://github.com/jarrodwatts/claude-hud) run **on every tick**, amplifying memory pressure and making `pas panic` crashes far more likely.
 
-**Solution.** CC-HUD is a **crash-free alternative** — pure Node.js, zero deps, stateless per call, ~60ms render, 2s hard timeout. Designed to keep your status bar running without taking Claude Code down.
+**Solution.** CC-HUD is a **crash-free alternative** — pure Node.js, zero deps, stateless per call, ~30ms render, 2s hard timeout. Designed to keep your status bar running without taking Claude Code down.
 
 > [!TIP]
 > **Windows users:** the native installer's `claude.exe` embeds a Bun runtime — the very source of the `pas panic` crash. The npm build runs on your system Node.js and doesn't have the problem:
@@ -94,7 +94,7 @@ Inside Claude Code:
 **Done** — no restart needed; `/reload-plugins` hot-loads the HUD.
 
 > [!NOTE]
-> `/cc-hud:setup` installs a tiny launcher at `~/.claude/bin/cc-hud-launcher.cjs` and points `statusLine.command` at it. It is **idempotent** — re-running migrates old version-pinned paths and skips when already current. If `statusLine` is managed by [`cc-bot`](https://github.com/WaterTian/cc-bot)'s shim, setup detects this and leaves it alone (the shim already wraps cc-hud transparently).
+> `/cc-hud:setup` installs a tiny launcher at `~/.claude/bin/cc-hud-launcher.cjs` (under `$CLAUDE_CONFIG_DIR/bin/` when that variable is set) and points `statusLine.command` at it — quoted, forward slashes, so a Windows path or a home directory with a space survives the shell. It is **idempotent** — re-running migrates old version-pinned paths and skips when already current. If `statusLine` is managed by [`cc-bot`](https://github.com/WaterTian/cc-bot)'s shim, setup detects this and leaves it alone (the shim already wraps cc-hud transparently).
 
 ### Upgrade
 
@@ -105,28 +105,6 @@ Inside Claude Code:
 
 > [!NOTE]
 > The launcher resolves the currently installed cc-hud version on each tick, so upgrades need **no re-setup**. Upgrading from **≤0.4.x**? Re-run `/cc-hud:setup` **once** — it auto-detects the old version-pinned path and migrates it to the launcher.
-
-<details>
-<summary><b>Via npm (manual)</b></summary>
-<br/>
-
-```bash
-npm i -g cc-hud
-```
-
-Add to `~/.claude/settings.json`:
-
-```json
-{
-  "statusLine": {
-    "type": "command",
-    "command": "npx cc-hud",
-    "padding": 2
-  }
-}
-```
-
-</details>
 
 <details>
 <summary><b>From source</b></summary>
@@ -143,11 +121,13 @@ Add to `~/.claude/settings.json`:
 {
   "statusLine": {
     "type": "command",
-    "command": "node /absolute/path/to/cc-hud/dist/index.js",
+    "command": "node \"/absolute/path/to/cc-hud/dist/index.js\"",
     "padding": 2
   }
 }
 ```
+
+`/cc-hud:setup` leaves a from-source command like this untouched — the launcher only resolves marketplace installs.
 
 </details>
 
@@ -189,13 +169,13 @@ cc-hud shows your current **thinking depth** (the model's reasoning effort — `
 - Fetches run in a **detached background refresher** — a statusline tick never waits on the network. Results are cached for 5 minutes. If no refresh has **succeeded** for 30 minutes the gauge is shown as `~Fable:51%` — "couldn't fetch" never looks like "fresh".
 - The gauge only activates on the official Anthropic backend with a subscription; API-key and third-party sessions skip it entirely.
 - Opt out anytime: set `CC_HUD_NO_REFRESH=1` to disable the background usage fetch (thinking depth is unaffected — it never touches the network).
-- **Behind a proxy?** The refresher honors `HTTPS_PROXY` / `https_proxy` / `ALL_PROXY`. Statusline processes often don't inherit your shell's proxy, so you can also put it in `~/.config/cc-hud/config.json`:
+- **Behind a proxy?** Native `fetch` is tried first and **ignores** `HTTPS_PROXY`; on a transport failure or a WAF 403 the request is retried through `curl`, and that is the path where `HTTPS_PROXY` / `https_proxy` / `ALL_PROXY` take effect. Statusline processes often don't inherit your shell's proxy, so you can also put it in `~/.config/cc-hud/config.json` (handed to curl as `https_proxy`):
 
   ```json
   { "proxy": "http://127.0.0.1:7890" }
   ```
 
-  Native `fetch` is tried first; on a transport failure or a WAF 403 the request is retried through `curl` (which is also the path that actually uses the proxy). A 401/404/500 is taken as the server's answer and not retried.
+  A 401/404/500 is taken as the server's answer and not retried. `CC_HUD_CURL=/path/to/curl` picks a different curl binary (default: `curl` on `PATH`).
 
 ### Workspace, spend cap & cost
 
@@ -204,6 +184,19 @@ cc-hud shows your current **thinking depth** (the model's reasoning effort — `
 - **`$0.42`** — session cost estimate from Claude Code (`cost.total_cost_usd`); set `CC_HUD_NO_COST=1` to hide it.
 - Any other `rate_limits` window Claude Code adds later is listed as-is (`one day:7%`) rather than dropped.
 - **Subagents** are detected from the last 64 KB of the transcript. A very large tool result can push a still-running `Agent` call out of that window; if you want per-subagent rows regardless, Claude Code's own `subagentStatusLine` setting complements cc-hud.
+
+### Environment variables
+
+| Variable | Effect |
+| --- | --- |
+| `CLAUDE_CONFIG_DIR` | Claude Code's config directory (default `~/.claude`). cc-hud reads `.credentials.json` and `plugins/installed_plugins.json` from it, and `/cc-hud:setup` puts the launcher in `<dir>/bin/`. |
+| `CC_HUD_NO_REFRESH=1` | Never spawn the background usage refresher (no network at all on the official backend). |
+| `CC_HUD_NO_COST=1` | Hide the session-cost segment. |
+| `CC_HUD_EXTRA_FILE=<path>` | Show the file's first line as an extra segment (see [Other backends](#other-backends)). |
+| `CC_HUD_CURL=<path>` | curl binary for the proxy / WAF fallback (default `curl`). |
+| `HTTPS_PROXY` / `https_proxy` / `ALL_PROXY` | Proxy for the curl fallback only — native `fetch` ignores them. |
+
+Boolean switches treat `0`, `false` and an empty value as off.
 
 <br/>
 
@@ -255,7 +248,7 @@ Set the `CC_HUD_EXTRA_FILE` env var to any file whose first line is the text to 
 ```bash
 npm install
 npm run build      # compile TypeScript → dist/
-npm test           # 185 tests (node:test)
+npm test           # 227 tests (node:test)
 ```
 
 Project layout:

@@ -25,6 +25,7 @@ describe('claude plan', () => {
   const originalFetch = globalThis.fetch;
   const originalCurl = process.env.CC_HUD_CURL;
   const originalNoRefresh = process.env.CC_HUD_NO_REFRESH;
+  const originalConfigDir = process.env.CLAUDE_CONFIG_DIR;
 
   let tmpHome: string;
   let fetchCalls: { url: string; init: RequestInit | undefined }[];
@@ -53,6 +54,7 @@ describe('claude plan', () => {
 
   beforeEach(() => {
     delete process.env.ANTHROPIC_BASE_URL;
+    delete process.env.CLAUDE_CONFIG_DIR;
     tmpHome = mkdtempSync(join(tmpdir(), 'claude-test-'));
     process.env.HOME = tmpHome;
     process.env.USERPROFILE = tmpHome;
@@ -82,6 +84,8 @@ describe('claude plan', () => {
     else process.env.CC_HUD_CURL = originalCurl;
     if (originalNoRefresh === undefined) delete process.env.CC_HUD_NO_REFRESH;
     else process.env.CC_HUD_NO_REFRESH = originalNoRefresh;
+    if (originalConfigDir === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+    else process.env.CLAUDE_CONFIG_DIR = originalConfigDir;
     globalThis.fetch = originalFetch;
     rmSync(tmpHome, { recursive: true, force: true });
   });
@@ -254,6 +258,22 @@ describe('claude plan', () => {
       }), { status: 200 });
       const payload = await refreshedPayload();
       assert.equal(payload.topModel!.resetsAt, null);
+    });
+
+    it('reads credentials from CLAUDE_CONFIG_DIR when it is set', async () => {
+      // ~/.claude holds an expired token — only the CLAUDE_CONFIG_DIR copy is valid
+      writeCreds({ expiresAt: Date.now() - 1000 });
+      const cfg = join(tmpHome, 'custom-config');
+      mkdirSync(cfg, { recursive: true });
+      writeFileSync(join(cfg, '.credentials.json'), JSON.stringify({
+        claudeAiOauth: { accessToken: 'sk-ant-oat-cfgdir', expiresAt: Date.now() + 3_600_000 },
+      }));
+      process.env.CLAUDE_CONFIG_DIR = cfg;
+      const payload = await refreshedPayload();
+      assert.equal(fetchCalls.length, 1);
+      const headers = fetchCalls[0]?.init?.headers as Record<string, string> | undefined;
+      assert.equal(headers?.Authorization, 'Bearer sk-ant-oat-cfgdir');
+      assert.equal(payload.topModel!.name, 'Fable');
     });
 
     it('skips fetch when the access token is expired', async () => {

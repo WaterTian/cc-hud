@@ -8,6 +8,8 @@ const CACHE_NAME = 'claude-plan';
 // Same endpoint the /usage panel reads; its `limits[]` array carries the
 // top-tier-model weekly gauge that the statusline stdin JSON does not expose.
 const USAGE_URL = 'https://api.anthropic.com/api/oauth/usage';
+// Claude Code's config dir: CLAUDE_CONFIG_DIR when set, else ~/.claude
+const configDir = () => process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude');
 // Critical isolation: third-party backends (DeepSeek / GLM / MiniMax) skip the whole module
 function isAnthropic() {
     const base = process.env.ANTHROPIC_BASE_URL;
@@ -27,7 +29,7 @@ function readAccessToken() {
     // an expired file means the Keychain copy is the same account, same expiry.
     let fileRaw = null;
     try {
-        fileRaw = readFileSync(join(homedir(), '.claude', '.credentials.json'), 'utf8');
+        fileRaw = readFileSync(join(configDir(), '.credentials.json'), 'utf8');
     }
     catch { /* no file — fall through */ }
     if (fileRaw !== null) {

@@ -62,6 +62,13 @@ describe('shortModelName', () => {
     assert.deepEqual(shortModelName(undefined, 'deepseek-v4-pro[1m]'), { name: 'DeepSeek V4 Pro', variant: '1M' });
   });
 
+  it('beautifies bare-version and named DeepSeek ids', () => {
+    assert.deepEqual(shortModelName(undefined, 'deepseek-v4'), { name: 'DeepSeek V4', variant: null });
+    assert.deepEqual(shortModelName(undefined, 'deepseek-v4[1m]'), { name: 'DeepSeek V4', variant: '1M' });
+    assert.deepEqual(shortModelName(undefined, 'deepseek-chat'), { name: 'DeepSeek Chat', variant: null });
+    assert.deepEqual(shortModelName(undefined, 'deepseek-reasoner'), { name: 'DeepSeek Reasoner', variant: null });
+  });
+
   it('beautifies MiniMax M3 model id', () => {
     assert.deepEqual(shortModelName(undefined, 'MiniMax-M3'), { name: 'MiniMax M3', variant: null });
   });
