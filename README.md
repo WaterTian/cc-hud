@@ -35,10 +35,6 @@
 <p align="center">
   <a href="https://github.com/WaterTian/cc-hud/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/WaterTian/cc-hud/ci.yml?branch=main&style=flat-square&label=CI" alt="CI" /></a>
   &nbsp;
-  <a href="https://www.npmjs.com/package/cc-hud"><img src="https://img.shields.io/npm/v/cc-hud?style=flat-square&color=cb3837" alt="npm version" /></a>
-  &nbsp;
-  <a href="https://www.npmjs.com/package/cc-hud"><img src="https://img.shields.io/npm/dm/cc-hud?style=flat-square&color=cb3837" alt="npm downloads" /></a>
-  &nbsp;
   <a href="#install"><img src="https://img.shields.io/badge/install-4_commands-blueviolet?style=flat-square" alt="install" /></a>
   &nbsp;
   <img src="https://img.shields.io/badge/dependencies-0-brightgreen?style=flat-square" alt="zero deps" />
