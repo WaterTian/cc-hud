@@ -7,7 +7,7 @@
   Step 1: /plugin marketplace add WaterTian/cc-hud
   Step 2: /plugin install cc-hud@cc-hud
   Step 3: /reload-plugins
-  Step 4: /cc-hud:setup  (idempotent; v0.5.0+ installs a launcher so future upgrades only need /plugin marketplace update cc-hud + /reload-plugins)
+  Step 4: /cc-hud:setup  (idempotent; v0.5.0+ installs a launcher so future upgrades only need /plugin marketplace update cc-hud + /plugin update cc-hud@cc-hud + /reload-plugins, no re-setup)
 
   Keywords: claude-code plugin statusline status-bar hud monitoring context-window rate-limit reset-countdown agents windows crash-free zero-dependency catppuccin deepseek minimax glm thinking-depth reasoning-effort effort-level fable opus-limit top-model weekly-gauge
 -->
@@ -34,6 +34,8 @@
 
 <p align="center">
   <a href="https://github.com/WaterTian/cc-hud/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/WaterTian/cc-hud/ci.yml?branch=main&style=flat-square&label=CI" alt="CI" /></a>
+  &nbsp;
+  <a href="https://www.npmjs.com/package/@watertian/cc-hud"><img src="https://img.shields.io/npm/v/%40watertian%2Fcc-hud?style=flat-square&color=cb3837&label=npm" alt="npm" /></a>
   &nbsp;
   <a href="#install"><img src="https://img.shields.io/badge/install-4_commands-blueviolet?style=flat-square" alt="install" /></a>
   &nbsp;
@@ -99,12 +101,42 @@ Inside Claude Code:
 ### Upgrade
 
 ```
-/plugin marketplace update cc-hud
-/reload-plugins
+/plugin marketplace update cc-hud      # refresh the marketplace manifest
+/plugin update cc-hud@cc-hud           # download the new version into the plugin cache
+/reload-plugins                        # hot-load it
 ```
+
+Run them one at a time — `/plugin …` commands are interactive and cannot be chained. (If the `cc-hud` marketplace has `autoUpdate: true` in `~/.claude/settings.json`, Claude Code pulls new versions on startup and only `/reload-plugins` is needed.)
 
 > [!NOTE]
 > The launcher resolves the currently installed cc-hud version on each tick, so upgrades need **no re-setup**. Upgrading from **≤0.4.x**? Re-run `/cc-hud:setup` **once** — it auto-detects the old version-pinned path and migrates it to the launcher.
+
+<details>
+<summary><b>Via npm</b></summary>
+<br/>
+
+The package is published as **`@watertian/cc-hud`** (the old unscoped `cc-hud` on npm is unmaintained and stuck at 0.7.0):
+
+```bash
+npm i -g @watertian/cc-hud
+npm root -g          # prints npm's global node_modules, e.g. /usr/local/lib/node_modules
+```
+
+Point `statusLine.command` at the installed entry by **absolute path** (the status-line shell may not have npm's global `bin` on `PATH`, so `cc-hud` / `npx` are not reliable there):
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "node \"/usr/local/lib/node_modules/@watertian/cc-hud/dist/index.js\"",
+    "padding": 2
+  }
+}
+```
+
+Upgrade with `npm i -g @watertian/cc-hud@latest`; the path stays valid.
+
+</details>
 
 <details>
 <summary><b>From source</b></summary>

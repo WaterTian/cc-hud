@@ -76,6 +76,7 @@ Run /reload-plugins to see the HUD.
 
 Future upgrades:
   /plugin marketplace update cc-hud
+  /plugin update cc-hud@cc-hud
   /reload-plugins
 (no need to re-run /cc-hud:setup unless a release note says otherwise.)
 ```
