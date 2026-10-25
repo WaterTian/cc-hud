@@ -3,12 +3,15 @@ import { execFile } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-// JSON GET for the detached refresher: native fetch first, curl as fallback.
+// JSON GET for the detached refresher. Behind a proxy: curl only. Otherwise:
+// native fetch first, curl as fallback.
 //
 // Why curl at all: Cloudflare's WAF 403s Node's TLS fingerprint on
 // api.anthropic.com/api/oauth/* while letting curl through (verified
-// 2026-07-23), and Node's fetch ignores HTTPS_PROXY whereas curl honors it —
-// so curl is also the path that works behind a proxy. curl ships with macOS,
+// 2026-07-23), and Node's fetch ignores HTTPS_PROXY whereas curl honors it.
+// Why curl only behind a proxy: a native attempt there leaves the machine
+// directly — bearer token included — before the fallback ever runs, so the
+// request would bypass the proxy the user configured. curl ships with macOS,
 // Windows 10+, and Linux.
 
 const DEFAULT_TIMEOUT_MS = 2000;
@@ -49,7 +52,7 @@ async function fetchNative(url: string, headers: Record<string, string>, timeout
 // The request goes via a curl config on stdin so the token never appears in
 // the argv list. Header values are restricted to a safe charset — a quote or
 // newline would break out of the config syntax.
-function fetchCurl(url: string, headers: Record<string, string>, timeoutMs: number): Promise<unknown | null> {
+function fetchCurl(url: string, headers: Record<string, string>, timeoutMs: number, proxy: string | null): Promise<unknown | null> {
   const lines = [`url = "${url}"`];
   for (const [k, v] of Object.entries(headers)) {
     if (!/^[\w.\-~+/=:, ]+$/.test(v) || !/^[\w-]+$/.test(k)) return Promise.resolve(null);
@@ -58,7 +61,6 @@ function fetchCurl(url: string, headers: Record<string, string>, timeoutMs: numb
   lines.push('silent', 'fail', `max-time = ${Math.ceil(timeoutMs / 1000)}`);
 
   const env: NodeJS.ProcessEnv = { ...process.env };
-  const proxy = resolveProxy();
   if (proxy && !env.HTTPS_PROXY && !env.https_proxy) env.https_proxy = proxy;
 
   return new Promise(resolve => {
@@ -80,16 +82,20 @@ function fetchCurl(url: string, headers: Record<string, string>, timeoutMs: numb
   });
 }
 
-// Fallback to curl only where it can plausibly help: a transport failure
-// (TLS, DNS, proxy, timeout) or a 403 (WAF fingerprinting). A 401/404/500 is
-// the server's verdict — retrying through curl would just repeat it.
+// With a proxy configured, curl is the only transport, and a curl failure is
+// final: falling back to native fetch would go around the proxy. Without one,
+// fall back to curl only where it can plausibly help: a transport failure
+// (TLS, DNS, timeout) or a 403 (WAF fingerprinting). A 401/404/500 is the
+// server's verdict — retrying through curl would just repeat it.
 export async function fetchJson(
   url: string,
   headers: Record<string, string>,
   timeoutMs = DEFAULT_TIMEOUT_MS,
 ): Promise<unknown | null> {
+  const proxy = resolveProxy();
+  if (proxy) return fetchCurl(url, headers, timeoutMs, proxy);
   const r = await fetchNative(url, headers, timeoutMs);
   if (r.kind === 'ok') return r.data;
   if (r.kind === 'http' && r.status !== 403) return null;
-  return fetchCurl(url, headers, timeoutMs);
+  return fetchCurl(url, headers, timeoutMs, null);
 }

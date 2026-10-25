@@ -115,11 +115,27 @@ describe('http', () => {
     it('hands the configured proxy to curl via https_proxy', { skip: process.platform === 'win32' }, async () => {
       mkdirSync(join(tmpHome, '.config', 'cc-hud'), { recursive: true });
       writeFileSync(join(tmpHome, '.config', 'cc-hud', 'config.json'), JSON.stringify({ proxy: 'http://10.0.0.1:1080' }));
-      nextError = new Error('ECONNRESET');
       const curl = fakeCurl();
       const { fetchJson } = await importHttp();
-      await fetchJson('https://x.test/a', {});
+      assert.deepEqual(await fetchJson('https://x.test/a', {}), { via: 'curl' });
       assert.match(readFileSync(curl.envFile, 'utf8'), /^https_proxy=http:\/\/10\.0\.0\.1:1080$/m);
+      assert.equal(fetchCalls.length, 0, 'native fetch would bypass the proxy');
+    });
+
+    it('goes straight to curl when the environment carries a proxy', { skip: process.platform === 'win32' }, async () => {
+      process.env.https_proxy = 'http://127.0.0.1:7890';
+      const curl = fakeCurl();
+      const { fetchJson } = await importHttp();
+      assert.deepEqual(await fetchJson('https://x.test/a', { Authorization: 'Bearer tok' }), { via: 'curl' });
+      assert.equal(fetchCalls.length, 0, 'native fetch would bypass the proxy');
+      assert.match(readFileSync(curl.cfgFile, 'utf8'), /header = "Authorization: Bearer tok"/);
+    });
+
+    it('behind a proxy, a curl failure does not fall back to native fetch', async () => {
+      process.env.HTTPS_PROXY = 'http://127.0.0.1:7890';
+      const { fetchJson } = await importHttp();
+      assert.equal(await fetchJson('https://x.test/a', {}), null);
+      assert.equal(fetchCalls.length, 0, 'native fetch would bypass the proxy');
     });
 
     it('refuses a header value that would break the curl config', async () => {

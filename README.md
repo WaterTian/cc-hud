@@ -201,7 +201,7 @@ cc-hud shows your current **thinking depth** (the model's reasoning effort — `
 - Fetches run in a **detached background refresher** — a statusline tick never waits on the network. Results are cached for 5 minutes. If no refresh has **succeeded** for 30 minutes the gauge is shown as `~Fable:51%` — "couldn't fetch" never looks like "fresh".
 - The gauge only activates on the official Anthropic backend with a subscription; API-key and third-party sessions skip it entirely.
 - Opt out anytime: set `CC_HUD_NO_REFRESH=1` to disable the background usage fetch (thinking depth is unaffected — it never touches the network).
-- **Behind a proxy?** Native `fetch` is tried first and **ignores** `HTTPS_PROXY`; on a transport failure or a WAF 403 the request is retried through `curl`, and that is the path where `HTTPS_PROXY` / `https_proxy` / `ALL_PROXY` take effect. Statusline processes often don't inherit your shell's proxy, so you can also put it in `~/.config/cc-hud/config.json` (handed to curl as `https_proxy`):
+- **Behind a proxy?** Native `fetch` **ignores** `HTTPS_PROXY`, so once a proxy is configured (`HTTPS_PROXY` / `https_proxy` / `ALL_PROXY`, or the config file below) the request goes **only through `curl`** — native `fetch` is never tried, since it would leave the machine directly with your token. If curl fails, the refresh fails; it does not fall back to a direct connection. Without a proxy, native `fetch` is tried first and retried through `curl` on a transport failure or a WAF 403. Statusline processes often don't inherit your shell's proxy, so you can also put it in `~/.config/cc-hud/config.json` (handed to curl as `https_proxy`):
 
   ```json
   { "proxy": "http://127.0.0.1:7890" }
@@ -227,8 +227,8 @@ cc-hud shows your current **thinking depth** (the model's reasoning effort — `
 | `CC_HUD_NO_REFRESH=1` | Never spawn the background usage refresher (no network at all on the official backend). |
 | `CC_HUD_NO_COST=1` | Hide the session-cost segment. |
 | `CC_HUD_EXTRA_FILE=<path>` | Show the file's first line as an extra segment (see [Other backends](#other-backends)). |
-| `CC_HUD_CURL=<path>` | curl binary for the proxy / WAF fallback (default `curl`). |
-| `HTTPS_PROXY` / `https_proxy` / `ALL_PROXY` / `all_proxy` | Proxy for the curl fallback only — native `fetch` ignores them. |
+| `CC_HUD_CURL=<path>` | curl binary for proxied requests and the WAF fallback (default `curl`). |
+| `HTTPS_PROXY` / `https_proxy` / `ALL_PROXY` / `all_proxy` | When set, usage requests go through curl only (native `fetch` ignores proxies and is skipped). |
 | `ANTHROPIC_BASE_URL` | Read-only: decides the backend (official gauge vs DeepSeek / GLM / MiniMax detection by substring, see below). |
 | `ANTHROPIC_AUTH_TOKEN` | Read-only: the API key used to query a third-party backend's balance / quota endpoint. |
 

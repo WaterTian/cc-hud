@@ -26,6 +26,9 @@ describe('claude plan', () => {
   const originalCurl = process.env.CC_HUD_CURL;
   const originalNoRefresh = process.env.CC_HUD_NO_REFRESH;
   const originalConfigDir = process.env.CLAUDE_CONFIG_DIR;
+  // A proxy in the developer's shell would route every fetch through curl
+  const PROXY_KEYS = ['HTTPS_PROXY', 'https_proxy', 'ALL_PROXY', 'all_proxy'];
+  const originalProxy = Object.fromEntries(PROXY_KEYS.map(k => [k, process.env[k]]));
 
   let tmpHome: string;
   let fetchCalls: { url: string; init: RequestInit | undefined }[];
@@ -55,6 +58,7 @@ describe('claude plan', () => {
   beforeEach(() => {
     delete process.env.ANTHROPIC_BASE_URL;
     delete process.env.CLAUDE_CONFIG_DIR;
+    for (const k of PROXY_KEYS) delete process.env[k];
     tmpHome = mkdtempSync(join(tmpdir(), 'claude-test-'));
     process.env.HOME = tmpHome;
     process.env.USERPROFILE = tmpHome;
@@ -86,6 +90,10 @@ describe('claude plan', () => {
     else process.env.CC_HUD_NO_REFRESH = originalNoRefresh;
     if (originalConfigDir === undefined) delete process.env.CLAUDE_CONFIG_DIR;
     else process.env.CLAUDE_CONFIG_DIR = originalConfigDir;
+    for (const [k, v] of Object.entries(originalProxy)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
     globalThis.fetch = originalFetch;
     rmSync(tmpHome, { recursive: true, force: true });
   });

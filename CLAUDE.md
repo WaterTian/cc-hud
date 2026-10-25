@@ -30,7 +30,7 @@ src/
   claude.ts                 — 顶级模型周用量（OAuth usage API）：tick 只读缓存，网络全在 refresh.ts
   refresh.ts                — 分离式刷新子进程入口（node refresh.js <kind>，8s 预算，拉取后写缓存）
   cache.ts                  — 缓存约定：~/.cache/cc-hud/<name>.json、TTL / 冷却 / stale 判定、原子写、spawn 刷新子进程
-  http.ts                   — JSON GET：原生 fetch 优先，传输失败或 WAF 403 回退 curl（代理只在 curl 路径生效）
+  http.ts                   — JSON GET：配了代理只走 curl（Node fetch 不认代理，先试就会带着 token 直连），curl 失败不回退；无代理时原生 fetch 优先，传输失败或 WAF 403 回退 curl
   env.ts                    — 布尔环境变量开关（"" / "0" / "false" 视为关）
   balance.ts / glm.ts / mmx.ts  — DeepSeek / GLM / MiniMax 余额或配额采集（缓存未命中时 tick 内拉取，1.2s 预算）
   types.ts                  — 类型定义
