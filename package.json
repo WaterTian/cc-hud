@@ -1,7 +1,17 @@
 {
   "name": "@watertian/cc-hud",
-  "version": "0.9.3",
+  "version": "0.9.4",
   "description": "Compact statusline HUD for Claude Code — context, agents, rate limits",
+  "author": "WaterTian",
+  "license": "MIT",
+  "homepage": "https://github.com/WaterTian/cc-hud#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WaterTian/cc-hud.git"
+  },
+  "bugs": {
+    "url": "https://github.com/WaterTian/cc-hud/issues"
+  },
   "type": "module",
   "main": "dist/index.js",
   "bin": {

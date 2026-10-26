@@ -1,11 +1,11 @@
 {
   "name": "cc-hud",
   "owner": {
-    "name": "Water"
+    "name": "WaterTian"
   },
   "metadata": {
     "description": "Compact statusline HUD for Claude Code",
-    "version": "0.9.3"
+    "version": "0.9.4"
   },
   "plugins": [
     {
