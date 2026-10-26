@@ -79,4 +79,6 @@ Future upgrades:
   /plugin marketplace update cc-hud     (refreshes the marketplace in the panel and updates plugins installed from it)
   /reload-plugins
 (no need to re-run /cc-hud:setup unless a release note says otherwise; there is no /plugin update slash command — use the panel's "Update now" or `claude plugin update cc-hud@cc-hud` in a terminal if the Installed tab still shows the old version.)
+
+Also by the author: SintBot, a self-hosted daemon that runs Claude Code or Codex from Feishu, Slack or WeCom → https://sintbot.com/?utm_source=cc-hud-setup
 ```
