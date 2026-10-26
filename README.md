@@ -64,6 +64,11 @@
 >
 > **Windows 用户：** 原生安装器的 `claude.exe` 内嵌 Bun 运行时，正是 `pas panic` 崩溃的根源；npm 版跑在系统 Node.js 上，无此问题。用上面两条命令确认安装类型并切换。
 
+> [!NOTE]
+> **Also by WaterTian: [SintBot](https://github.com/sintlab/sintbot).** A self-hosted daemon that runs Claude Code (or Codex) headless on your own machine, so your team can hand it work from a Slack, Feishu or WeCom group. Each group gets its own project, model and permissions, and progress streams back to the chat. PolyForm Shield · `npm i -g sintbot` · [sintbot.com](https://sintbot.com/?utm_source=cc-hud-readme)
+>
+> **同作者项目：[SintBot](https://github.com/sintlab/sintbot/blob/main/README.zh-CN.md)。** 自托管的守护进程，在你自己的电脑上无头运行 Claude Code 或 Codex，团队在 Slack、飞书或企业微信群里给它派活；每个群各有项目、模型和权限，进度实时回到群里。PolyForm Shield · `npm i -g sintbot` · [sintbot.com](https://sintbot.com/zh/?utm_source=cc-hud-readme)
+
 <br/>
 
 ## Features
