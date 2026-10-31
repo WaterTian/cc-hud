@@ -70,9 +70,9 @@ Claude Code → stdin JSON → cc-hud → stdout → 状态栏
 1. bump 三处版本号：`package.json` / `.claude-plugin/plugin.json` / `.claude-plugin/marketplace.json`
 2. `npm test` 全过，`git diff -- dist/` 已随源码一起变更
 3. 单 commit（标题带 `(vX.Y.Z)`）→ `git tag vX.Y.Z` → `git push origin main && git push origin vX.Y.Z` → `gh release create vX.Y.Z --notes-file <notes>`
-4. `npm publish`（npm 包名 **`@watertian/cc-hud`**，`publishConfig.access=public` 已写在 package.json；账号 watertian）。旧的无 scope 包 `cc-hud` 属于已无法登录的旧账号，停在 0.7.0，不要再往那个名字发
+4. `npm publish`（npm 包名 **`cc-hud`**，账号 watertian；旧账号 changewater 也是维护者）。`@watertian/cc-hud` 停在 0.9.4 并已废弃，不要再往那个名字发
 
-插件用户走 Claude Code marketplace（`/plugin marketplace add WaterTian/cc-hud`），与 npm 发布互不影响；README 的 npm 徽章 / Via npm 段指向 scoped 包名。
+插件用户走 Claude Code marketplace（`/plugin marketplace add WaterTian/cc-hud`），与 npm 发布互不影响；README 的 npm 徽章 / Via npm 段指向 `cc-hud`。
 
 ## 环境
 

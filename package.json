@@ -1,5 +1,5 @@
 {
-  "name": "@watertian/cc-hud",
+  "name": "cc-hud",
   "version": "0.9.4",
   "description": "Compact statusline HUD for Claude Code — context, agents, rate limits",
   "author": "WaterTian",

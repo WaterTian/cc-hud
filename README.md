@@ -35,7 +35,7 @@
 <p align="center">
   <a href="https://github.com/WaterTian/cc-hud/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/WaterTian/cc-hud/ci.yml?branch=main&style=flat-square&label=CI" alt="CI" /></a>
   &nbsp;
-  <a href="https://www.npmjs.com/package/@watertian/cc-hud"><img src="https://img.shields.io/npm/v/%40watertian%2Fcc-hud?style=flat-square&color=cb3837&label=npm" alt="npm" /></a>
+  <a href="https://www.npmjs.com/package/cc-hud"><img src="https://img.shields.io/npm/v/cc-hud?style=flat-square&color=cb3837&label=npm" alt="npm" /></a>
   &nbsp;
   <a href="#install"><img src="https://img.shields.io/badge/install-4_commands-blueviolet?style=flat-square" alt="install" /></a>
   &nbsp;
@@ -120,10 +120,10 @@ Inside Claude Code:
 <summary><b>Via npm</b></summary>
 <br/>
 
-The package is published as **`@watertian/cc-hud`** (the old unscoped `cc-hud` on npm is unmaintained and stuck at 0.7.0):
+The package is published as **`cc-hud`** (`@watertian/cc-hud` is deprecated; if you installed it, `npm rm -g @watertian/cc-hud` and update the path below):
 
 ```bash
-npm i -g @watertian/cc-hud
+npm i -g cc-hud
 npm root -g          # prints npm's global node_modules, e.g. /usr/local/lib/node_modules
 ```
 
@@ -133,13 +133,13 @@ Point `statusLine.command` at the installed entry by **absolute path** (the stat
 {
   "statusLine": {
     "type": "command",
-    "command": "node \"/usr/local/lib/node_modules/@watertian/cc-hud/dist/index.js\"",
+    "command": "node \"/usr/local/lib/node_modules/cc-hud/dist/index.js\"",
     "padding": 2
   }
 }
 ```
 
-Upgrade with `npm i -g @watertian/cc-hud@latest`; the path stays valid.
+Upgrade with `npm i -g cc-hud@latest`; the path stays valid.
 
 </details>
 
