@@ -217,7 +217,8 @@ you want your old footer back — removing the plugin alone leaves the preset.
 **Optional theme.** `cc-hud theme codex` installs the bundled 2.5 KB
 `cc-hud.tmTheme` into `$CODEX_HOME/themes/` and sets `tui.theme` +
 `tui.status_line_use_colors` (previous values saved to
-`$CODEX_HOME/cc-hud-theme.json`). Models are blue, the project cyan,
+`$CODEX_HOME/cc-hud-theme.json`, including the installed file's hash even if
+the settings already match). Models are blue, the project cyan,
 branch / context / limits green — fixed per field, not the Claude HUD's usage
 thresholds — and it colors syntax highlighting too, which is why it is a
 separate opt-in. In a running TUI: `/theme` → search `cc-hud` → Enter.

@@ -75,8 +75,9 @@ export async function codexTheme(restore: boolean): Promise<void> {
     if (!restore) {
       const hash = installAsset(home, previous);
       if (!previous) {
-        // Nothing to restore when the settings already match — no backup then.
-        if (!same(current, applied)) writeBackup(backupFile, { schema: 1, ...current, asset: hash }, true);
+        // Track the installed asset even if the settings already match, so a
+        // later release can refresh it. Restore keeps those original settings.
+        writeBackup(backupFile, { schema: 1, ...current, asset: hash }, true);
       } else if (previous.asset !== hash) {
         writeBackup(backupFile, { ...previous, asset: hash });
       }

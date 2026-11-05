@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, writeFileSync, existsSync, statSync, rmSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, writeFileSync, existsSync, statSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,7 +15,7 @@ function fixture(initial: string[] | null = ['model'], overridden = false) {
   const file = join(home, 'fixture.json');
   const backup = join(home, 'cc-hud-native.json');
   writeFileSync(file, JSON.stringify({ local: initial, other: 'KEEP_PRIVATE', overridden }));
-  const run = (action: string, extra: Record<string, string> = {}) => spawnSync(process.execPath, [cli, action, 'codex'], {
+  const run = (action: string, extra: Record<string, string> = {}, entry = cli) => spawnSync(process.execPath, [entry, action, 'codex'], {
     env: { ...process.env, CODEX_HOME: home, CC_HUD_CODEX: fake, ...extra }, encoding: 'utf8', timeout: 15_000,
   });
   return { home, file, backup, run, data: () => JSON.parse(readFileSync(file, 'utf8')), clean: () => rmSync(home, { recursive: true, force: true }) };
@@ -176,6 +176,29 @@ describe('npm entry compatibility', () => {
 });
 
 describe('optional native theme', () => {
+  it('can upgrade an asset installed when the theme settings already matched', () => {
+    const f = fixture();
+    try {
+      writeFileSync(f.file, JSON.stringify({ ...f.data(), theme: 'cc-hud', colors: true }));
+      assert.equal(f.run('theme').status, 0);
+      const target = join(f.home, 'themes', 'cc-hud.tmTheme');
+      const original = readFileSync(target, 'utf8');
+      // A separate package simulates the next release without editing this checkout.
+      const release = join(f.home, 'release');
+      cpSync(fileURLToPath(new URL('../dist/', import.meta.url)), join(release, 'dist'), { recursive: true });
+      cpSync(fileURLToPath(new URL('../assets/', import.meta.url)), join(release, 'assets'), { recursive: true });
+      writeFileSync(join(release, 'package.json'), '{"type":"module"}');
+      const updated = original.replace('</plist>', '<!-- next release -->\n</plist>');
+      writeFileSync(join(release, 'assets', 'cc-hud.tmTheme'), updated);
+      const r = f.run('theme', {}, join(release, 'dist', 'cli.js'));
+      assert.equal(r.status, 0, r.stderr);
+      assert.equal(readFileSync(target, 'utf8'), updated);
+      assert.equal(f.run('restore-theme').status, 0);
+      assert.equal(f.data().theme, 'cc-hud');
+      assert.equal(f.data().colors, true);
+    } finally { f.clean(); }
+  });
+
   it('migrates the old theme name while retaining the original restore point', () => {
     const f = fixture();
     try {

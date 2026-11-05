@@ -179,16 +179,18 @@ upgrade cc-hud` (installed plugin files refresh too).
 
 Commands — `node dist/cli.js <action> codex` from the plugin dir or a checkout,
 or the npm `cc-hud` bin: `setup`, `check` (exit 0 = active), `restore`, `theme`,
-`restore-theme`; also `--help` / `--version`. Errors go to stderr with exit 1
-and nothing is changed on any error path. With no arguments the bin is the
-Claude renderer when stdin is a pipe and prints help on a TTY.
+`restore-theme`; also `--help` / `--version`. Errors go to stderr with exit 1.
+A failed command can leave a backup, an installed asset, or a saved user-layer
+value (for example, when another layer overrides it); changes are not rolled
+back automatically. With no arguments the bin is the Claude renderer when
+stdin is a pipe and prints help on a TTY.
 
 | Command | Reads / writes | Behaviour |
 | --- | --- | --- |
 | `setup codex` | `tui.status_line` in the user `config.toml`: `config/read` → `config/batchWrite` (`expectedVersion` guard) → re-read | Preset `model-with-reasoning`, `context-used`, `five-hour-limit`, `weekly-limit`, `project-name`, `git-branch`. Idempotent. Writes `$CODEX_HOME/cc-hud-native.json` `{ schema, previous, applied }` (mode 600) only when it first takes the field over; refreshes `applied` when a release changed the preset. A footer edited since, or overridden by another config layer, is reported — never overwritten. |
 | `check codex` | read only | "Configured" iff both the user layer and the effective config equal the preset. No Codex spawn when `$CODEX_HOME` does not exist. |
 | `restore codex` | writes `previous` back (JSON null removes a key that was absent), deletes the backup | Treats the current preset or the one previously applied as "ours"; anything else is a user edit and is left alone. |
-| `theme codex` | `tui.theme = "cc-hud"`, `tui.status_line_use_colors = true`; installs `assets/cc-hud.tmTheme` → `$CODEX_HOME/themes/cc-hud.tmTheme` | Backup `$CODEX_HOME/cc-hud-theme.json` `{ schema, theme, colors, asset }`; `asset` is the sha256 of the file installed, so a newer release replaces a file cc-hud wrote but refuses a user-edited one (the message names the path to delete). The legacy theme name `cc-hud-mocha` counts as ours. |
+| `theme codex` | `tui.theme = "cc-hud"`, `tui.status_line_use_colors = true`; installs `assets/cc-hud.tmTheme` → `$CODEX_HOME/themes/cc-hud.tmTheme` | Backup `$CODEX_HOME/cc-hud-theme.json` `{ schema, theme, colors, asset }`, even when the settings already match; `asset` is the sha256 of the file installed, so a newer release replaces a file cc-hud wrote but refuses a user-edited one (the message names the path to delete). The legacy theme name `cc-hud-mocha` counts as ours. |
 | `restore-theme codex` | writes the saved theme / colors back, deletes the backup, keeps the theme file | |
 
 Process model: one temporary `codex app-server --stdio` per command (cwd and
