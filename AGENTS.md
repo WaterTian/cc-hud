@@ -1,6 +1,7 @@
 # cc-hud — agent reference
 
-Compact single-line status bar for Claude Code. This file is the machine-oriented
+Compact single-line status bar for Claude Code, plus a native Codex CLI footer
+preset. This file is the machine-oriented
 reference: exact commands with expected output, the runtime contract, every file,
 process and endpoint the tool touches, and the invariants to keep when changing
 it. The human tour is [README.md](README.md); maintainer notes (Chinese) are in
@@ -69,6 +70,10 @@ leaves such a command untouched.
 
 ## Runtime contract
 
+The stdin contract below applies to `dist/index.js` (Claude) and to the npm
+entry `dist/cli.js` with no arguments. Explicit CLI commands have ordinary
+command output and nonzero exit codes on failure.
+
 - **Input**: Claude Code's statusline JSON on stdin ([schema](https://code.claude.com/docs/en/statusline)).
   Fields read are typed in [src/types.ts](src/types.ts) (`StdinData`); everything else
   is ignored. Empty, malformed or non-object stdin renders the bare `[Claude]` line.
@@ -117,6 +122,10 @@ Boolean switches: `""`, `0`, `false` mean off; anything else means on (`src/env.
 | Path | Role |
 | --- | --- |
 | `src/index.ts` | Entry: stdin → collectors in parallel → `render()` → single stdout write; fallback line on any error |
+| `src/cli.ts` | npm entry; no args imports the Claude entry, explicit setup/check/restore dispatches to Codex configuration |
+| `src/codex.ts`, `src/codex-rpc.ts` | One-time native Codex footer setup/check/restore through its config API; no model or account calls |
+| `src/codex-theme.ts`, `assets/cc-hud.tmTheme` | Optional native palette, one-time theme configuration and separate restore |
+| `plugin.json`, `skills/codex-setup/` | Portable Codex plugin manifest and onboarding skill; existing `.claude-plugin/marketplace.json` is compatible with Codex |
 | `src/stdin.ts` | stdin JSON → `StdinData` (`{}` unless a plain object) |
 | `src/types.ts` | `StdinData` (fields read), `RenderData` (what the renderer needs) |
 | `src/render.ts` | Pure renderer: `RenderData` → one coloured line; strips control chars from free text |
@@ -155,8 +164,48 @@ echo '{"model":{"id":"claude-opus-4-7[1m]"},"effort":{"level":"max"},"context_wi
 Exercise the refresher and inspect its cache: `node dist/refresh.js claude && cat ~/.cache/cc-hud/claude-plan.json`.
 
 Release: bump the version in `package.json`, `.claude-plugin/plugin.json`,
-`.claude-plugin/marketplace.json`; `npm test`; commit (title ends with `(vX.Y.Z)`);
+`.claude-plugin/marketplace.json`, and root `plugin.json`; `npm test`; commit (title ends with `(vX.Y.Z)`);
 tag `vX.Y.Z`; push branch + tag; `gh release create`; `npm publish` (package `cc-hud`).
+
+## Codex native footer
+
+Requires Codex CLI >=0.166.0. Install with `codex plugin marketplace add
+WaterTian/cc-hud`, then `codex plugin add cc-hud@cc-hud`; start a new session
+and run the plugin setup skill. Git marketplace update: `codex plugin
+marketplace upgrade cc-hud`; installed plugin files refresh too.
+
+The packaged command is `node dist/cli.js setup codex` (`check` / `restore`
+are the other actions); npm users can use `cc-hud` directly. Only
+`tui.status_line` is edited, using `config/read` and atomic
+`config/batchWrite` with `expectedVersion`. JSON null removes an originally
+absent key. The previous field and applied preset are stored with mode 600 in
+`$CODEX_HOME/cc-hud-native.json`, never a copy of the full config. Later user
+edits are not overwritten by repeat setup or restore.
+
+`CC_HUD_CODEX` overrides the executable (also accepts npm `bin/codex.js`).
+One temporary stdio app-server process is used per command, under a 10s
+request deadline. It receives no thread, model, account, or usage requests;
+stderr and private config values aren't logged. It is terminated on exit.
+Normal Codex sessions use their own native data and rendering, without a
+cc-hud process, hooks, MCP, or `-c` flags. The preset preserves the theme:
+`model-with-reasoning`, `context-used`, `five-hour-limit`, `weekly-limit`,
+`project-name`, `git-branch`. Codex's quota figures mean remaining usage;
+Claude's mean used usage. Exact glyph/color/layout parity is not supported.
+
+Optional palette: `cc-hud theme codex` installs the 2.5 KB
+`assets/cc-hud.tmTheme` into `$CODEX_HOME/themes/` and sets `tui.theme`
+and `tui.status_line_use_colors`. The previous preferences are saved to
+`$CODEX_HOME/cc-hud-theme.json` (mode 600); `restore-theme codex` restores them
+and retains the reusable theme file. Later user edits and edited assets are
+not overwritten. Select `cc-hud` in `/theme` to apply to a running TUI.
+This native theme affects code highlighting too. Footer colors identify
+fields, without Claude's dynamic percentage thresholds. Plain footer setup
+does not opt into a theme change.
+
+`CC_HUD_CODEX_LIVE_TEST=1 npm test` opts into a real Codex config round-trip
+with an isolated config and an offline provider; no auth/model requests.
+`scripts/test.cjs` enumerates TS and CJS tests explicitly, including on
+Windows, and enables type stripping on Node 22.6+.
 
 ## Invariants — keep these when changing code
 

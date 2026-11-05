@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>name</key><string>CC-HUD</string>
+  <key>author</key><string>WaterTian</string>
+  <key>settings</key>
+  <array>
+    <dict><key>settings</key><dict>
+      <key>background</key><string>#1e1e2e</string>
+      <key>foreground</key><string>#cdd6f4</string>
+      <key>caret</key><string>#f5e0dc</string>
+      <key>selection</key><string>#45475a</string>
+      <key>lineHighlight</key><string>#313244</string>
+    </dict></dict>
+    <dict><key>scope</key><string>comment</string><key>settings</key><dict><key>foreground</key><string>#6c7086</string></dict></dict>
+    <!-- Compensate for Codex's native 85% saturation in the footer. -->
+    <dict><key>scope</key><string>entity.name.type, support.type, variable</string><key>settings</key><dict><key>foreground</key><string>#82b2ff</string></dict></dict>
+    <dict><key>scope</key><string>string, markup.underline.link</string><key>settings</key><dict><key>foreground</key><string>#7cdbff</string></dict></dict>
+    <dict><key>scope</key><string>entity.name.function, entity.name.tag</string><key>settings</key><dict><key>foreground</key><string>#abdaab</string></dict></dict>
+    <dict><key>scope</key><string>constant.numeric, constant.language, storage.type</string><key>settings</key><dict><key>foreground</key><string>#abdaab</string></dict></dict>
+    <dict><key>scope</key><string>keyword, storage</string><key>settings</key><dict><key>foreground</key><string>#cba6f7</string></dict></dict>
+    <dict><key>scope</key><string>storage.modifier, keyword.operator</string><key>settings</key><dict><key>foreground</key><string>#b4befe</string></dict></dict>
+    <dict><key>scope</key><string>variable.parameter</string><key>settings</key><dict><key>foreground</key><string>#f2cdcd</string></dict></dict>
+    <dict><key>scope</key><string>support.function</string><key>settings</key><dict><key>foreground</key><string>#89dceb</string></dict></dict>
+    <dict><key>scope</key><string>markup.heading</string><key>settings</key><dict><key>foreground</key><string>#b4befe</string><key>fontStyle</key><string>bold</string></dict></dict>
+    <dict><key>scope</key><string>markup.inserted</string><key>settings</key><dict><key>foreground</key><string>#a6e3a1</string></dict></dict>
+    <dict><key>scope</key><string>markup.deleted, invalid</string><key>settings</key><dict><key>foreground</key><string>#f38ba8</string></dict></dict>
+  </array>
+</dict>
+</plist>

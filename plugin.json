@@ -1,0 +1,23 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "cc-hud",
+  "version": "0.10.0",
+  "description": "Compact Claude Code HUD and a lightweight native footer preset for Codex CLI.",
+  "author": { "name": "WaterTian" },
+  "homepage": "https://github.com/WaterTian/cc-hud",
+  "repository": "https://github.com/WaterTian/cc-hud",
+  "license": "MIT",
+  "keywords": ["codex", "claude-code", "statusline", "hud"],
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/codex-setup/SKILL.md",
+      "interface": {
+        "displayName": "CC-HUD",
+        "shortDescription": "Compact native footer for Codex CLI",
+        "developerName": "WaterTian",
+        "category": "Productivity",
+        "defaultPrompt": ["Use cc-hud to configure my Codex CLI native footer."]
+      }
+    }
+  }
+}

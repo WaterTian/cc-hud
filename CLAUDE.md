@@ -66,11 +66,32 @@ Claude Code → stdin JSON → cc-hud → stdout → 状态栏
 - **所有 IO try-catch** — 失败静默降级，不崩溃
 - **tick 内零网络（官方后端）** — claude.ts 只读缓存，网络请求全部由 detached 刷新子进程完成；OAuth usage 接口的 WAF 会 403 拦截 Node TLS 指纹，需 curl 回退（2026-07 实测）
 
-## 发版
+## Codex CLI 原生预设
+
+### 本次交接（2026-11-05）
+
+- 用户要求：官方 Codex CLI、原生、轻量、高效精简；接受与 Claude HUD 近似样式。用户侧主题统一叫 **cc-hud**，不带 Mocha 后缀；不引入 fork、tmux、常驻服务或额外额度请求。
+- 本批只提交、推送供另一个 Claude 对话审查，**不打 tag、不建 Release、不发布 npm**；版本号暂留 `0.10.0`。npm 的 `0.10.0` 已在本会话较早阶段发布，不能重复发布。
+- 最新验证：`CC_HUD_CODEX_LIVE_TEST=1 npm test` **243/243 通过**；原生 TUI 已实测主题选择、颜色、真实对话刷新、压缩、新建/恢复会话；配置 API 的隔离读写/恢复通过。Git diff 无空白错误。跨平台 CI 尚待推送后验证。
+- 当前老 Mac 默认 CLI 已从 app 内置 `0.166.0-alpha.6` 切到 npm 稳定版 `0.166.0`；app 内置旧版保留。共享 daemon 仍为 `0.166.0-alpha.5.1`，未重启，避免中断其他工作。
+- 本地插件已从此仓库安装并启用，缓存 `~/.codex/plugins/cache/cc-hud/cc-hud/0.10.0/`；当前原生主题配置为 `cc-hud`。原设置分别保存在 `~/.codex/cc-hud-native.json`、`~/.codex/cc-hud-theme.json`，仅含所管字段。
+- 视觉边界：原生分隔符、文字格式、百分比含义不能完全复刻 Claude；Codex 额度显示剩余，Claude 显示已用。原生颜色区分字段，不按百分比动态变色；`/compact` 期间可能短暂显示 0% 已用。
+- 后续审查优先核对：配置幂等与恢复、并发编辑保护、主题旧名迁移、Node ≥18 / Windows 路径、插件安装/更新和产物打包。不要将测试终端截图或浏览器预览当成用户当前窗口已重绘的证据。
+
+- 保留官方 CLI，采用近似样式：模型/深度 → 上下文已用 → 主/次额度剩余 → 项目 → 分支。
+- Codex 原生负责数据、配色、显示和刷新。无额外常驻进程、hook、MCP、会话扫描或额度 API；不承诺 Claude 版的进度条或完全相同样式。
+- root `plugin.json` + `skills/codex-setup/SKILL.md` 提供 Codex 插件和设置 skill，复用现有 marketplace。安装用 `codex plugin marketplace add WaterTian/cc-hud`、`codex plugin add cc-hud@cc-hud`；marketplace `upgrade` 会同步更新已装插件，新会话加载。
+- npm bin 改为 `dist/cli.js`，无参数仍调用 Claude `dist/index.js`；Claude launcher 保持不变。命令为 `cc-hud setup codex` / `check codex` / `restore codex`。
+- 可选 `theme codex` 安装 2.5KB 原生 `cc-hud.tmTheme`，模型蓝、项目青、分支/上下文/额度绿，也统一代码高亮。当前窗口用 `/theme` 搜索并选择 `cc-hud`；`restore-theme codex` 恢复先前主题配置。主题独立备份到 `cc-hud-theme.json`，默认 setup 不改主题。原生字段配色不随百分比动态变色。
+- 仅通过 Codex config API 修改 `tui.status_line`，保留其他设置；单字段备份位于 `$CODEX_HOME/cc-hud-native.json`。幂等设置、并发版本检查、恢复时保护后续用户修改。
+- 设置命令临时启动 stdio app-server，结束即退出；不使用 `-c` 包装正常 Codex 启动（会绕过共享 daemon）。要求 Codex ≥0.166.0，`CC_HUD_CODEX` 可指定可执行文件或 npm `codex.js`。
+- `npm test` 通过 `scripts/test.cjs` 显式枚举 TS/CJS，防止 Node 22 漏跑 TS。`CC_HUD_CODEX_LIVE_TEST=1 npm test` 加测隔离配置的真实 Codex 读写。
+
+## 发版流程
 
 无脚本，手动四步（dist 已进库，`npm test` 内含 build）：
 
-1. bump 三处版本号：`package.json` / `.claude-plugin/plugin.json` / `.claude-plugin/marketplace.json`
+1. bump 四处版本号：`package.json` / `.claude-plugin/plugin.json` / `.claude-plugin/marketplace.json` / root `plugin.json`
 2. `npm test` 全过，`git diff -- dist/` 已随源码一起变更
 3. 单 commit（标题带 `(vX.Y.Z)`）→ `git tag vX.Y.Z` → `git push origin main && git push origin vX.Y.Z` → `gh release create vX.Y.Z --notes-file <notes>`
 4. `npm publish`（npm 包名 **`cc-hud`**，唯一维护者 watertian）。`@watertian/cc-hud` 停在 0.9.4 并已废弃，不要再往那个名字发

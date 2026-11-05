@@ -173,6 +173,80 @@ Add to `~/.claude/settings.json`:
 
 <br/>
 
+## Codex CLI — native footer
+
+CC-HUD also provides a compact **native Codex footer preset**. Codex owns its
+display and refresh: no background service, hooks, MCP server, transcript
+reader, or extra quota request. Requires Node >=18 and Codex CLI >=0.166.0.
+
+Install through Codex's plugin marketplace:
+
+```bash
+codex plugin marketplace add WaterTian/cc-hud
+codex plugin add cc-hud@cc-hud
+```
+
+Start a new Codex session, open `/plugins`, and run CC-HUD's setup, or ask
+Codex to use CC-HUD to configure its native footer. The packaged setup skill
+runs the included CLI; a global npm install isn't needed.
+
+To update, refresh the Git marketplace, then start a new session. Codex also
+refreshes installed plugin files:
+
+```bash
+codex plugin marketplace upgrade cc-hud
+```
+
+The saved native footer survives plugin upgrades. Re-run setup only when a
+release changes the preset. Repo marketplaces are separate from OpenAI's
+reviewed public directory.
+
+For npm users (or a source checkout, using `node dist/cli.js`):
+
+```bash
+cc-hud setup codex
+cc-hud check codex
+cc-hud restore codex
+```
+
+Setup changes only `tui.status_line` through Codex's own TOML configuration
+API. It preserves the theme and all other settings, and stores the previous
+field in `$CODEX_HOME/cc-hud-native.json` (default `~/.codex`). Repeating setup
+doesn't replace that backup. Restore preserves later user edits; a conflict
+is reported rather than overwritten. Restart Codex to load saved changes.
+Restore before uninstalling the plugin if you want your previous footer;
+plugin removal by itself leaves the native preset in place.
+
+To bring the native colors closer to the Claude HUD, optionally apply the
+bundled 2.5 KB CC-HUD theme:
+
+```bash
+cc-hud theme codex
+# In the running CLI: /theme → search cc-hud → Enter
+cc-hud restore-theme codex  # restore your earlier theme preferences
+```
+
+This uses Codex's supported `.tmTheme` mechanism. Models are blue, the project
+is cyan, and branches/context/limits are green. It also colors syntax
+highlighting. Native footer colors distinguish fields; they don't change at
+the Claude HUD's usage thresholds. Only `tui.theme` and
+`tui.status_line_use_colors` are changed, with their previous values saved to
+`$CODEX_HOME/cc-hud-theme.json`. Later user edits and modified theme files are
+preserved. Restoring settings leaves the small theme file available to select
+again. Footer setup still preserves your theme unless you request this option.
+
+The native item order is model + effort, context used, primary and secondary
+limits, project name, then Git branch. Its appearance **approximates** the
+Claude HUD: Codex controls separators and colors, has no cc-hud progress bar,
+and shows quota **remaining**, while the Claude HUD shows quota used. Missing
+windows are omitted. During `/compact`, Codex can briefly show 0% context used.
+
+Setup/check/restore start one temporary `codex app-server --stdio` process for
+configuration requests only; it exits when the command completes. Normal
+Codex launches need no cc-hud command or `-c` overrides (which would bypass
+Codex's shared daemon). `CC_HUD_CODEX` can select an executable or npm
+`bin/codex.js` path when Codex isn't on `PATH`.
+
 ## How It Works
 
 ```
@@ -293,6 +367,8 @@ Set the `CC_HUD_EXTRA_FILE` env var to any file whose first line is the text to 
 npm install
 npm run build      # compile TypeScript → dist/
 npm test           # build + node:test suite (running the .ts tests needs Node ≥ 22.6 for type stripping — the shipped dist/ runs on ≥ 18)
+# Optional real Codex config round-trip (isolated config, no model requests):
+CC_HUD_CODEX_LIVE_TEST=1 npm test
 ```
 
 Project layout:
@@ -300,6 +376,8 @@ Project layout:
 | Path | Purpose |
 | --- | --- |
 | `src/` | TypeScript source — entry, render, model normalize, transcript (agents + effort fallback), git workspace, shared cache (detached + inline disciplines) + HTTP (native, curl / proxy), Claude gauge / DeepSeek / MiniMax / GLM collectors, detached refresher |
+| `src/cli.ts`, `src/codex.ts`, `src/codex-rpc.ts` | npm command dispatch and one-time Codex native configuration |
+| `plugin.json`, `skills/codex-setup/` | Portable Codex plugin and setup skill; shares the existing marketplace repo |
 | `scripts/launcher.cjs` | Stable-path launcher (`/cc-hud:setup` copies it to `~/.claude/bin/`) |
 | `commands/setup.md` | `/cc-hud:setup` slash command |
 | `tests/` | `node:test` unit tests (TS + CJS) |

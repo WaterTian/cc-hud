@@ -1,7 +1,7 @@
 {
   "name": "cc-hud",
   "version": "0.10.0",
-  "description": "Single-line statusline HUD for Claude Code — model, thinking depth, context bar, subagents, 5h/7d/spend limits, top-model weekly gauge, folder · branch; DeepSeek / GLM / MiniMax balance",
+  "description": "Compact Claude Code statusline HUD and native Codex CLI footer preset — model, effort, context, agents, limits, workspace and balances",
   "author": "WaterTian",
   "license": "MIT",
   "homepage": "https://github.com/WaterTian/cc-hud#readme",
@@ -15,7 +15,7 @@
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "cc-hud": "dist/index.js"
+    "cc-hud": "dist/cli.js"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -23,7 +23,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "npm run build && node --test",
+    "test": "npm run build && node scripts/test.cjs",
     "test:stdin": "npm run build && echo '{\"model\":{\"id\":\"claude-fable-5-1\",\"display_name\":\"Fable 5.1\"},\"effort\":{\"level\":\"high\"},\"context_window\":{\"used_percentage\":13,\"context_window_size\":1000000},\"rate_limits\":{\"five_hour\":{\"used_percentage\":18},\"seven_day\":{\"used_percentage\":2}},\"workspace\":{\"current_dir\":\"/tmp/cc-hud\"}}' | node dist/index.js"
   },
   "files": [
@@ -31,11 +31,15 @@
     "src/",
     "commands/",
     "scripts/",
-    ".claude-plugin/"
+    ".claude-plugin/",
+    "plugin.json",
+    "skills/",
+    "assets/"
   ],
   "keywords": [
     "claude-code",
     "claude-code-plugin",
+    "codex",
     "statusline",
     "status-bar",
     "hud",
