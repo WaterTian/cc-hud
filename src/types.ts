@@ -34,13 +34,6 @@ export interface StdinData {
     spend_limit?: SpendLimitWindow | null;
   } & Record<string, RateWindow | SpendLimitWindow | null | undefined>) | null;
   effort?: { level?: string | null } | null; // absent when the model has no effort control
-  cost?: {
-    total_cost_usd?: number | null;
-    total_duration_ms?: number;
-    total_api_duration_ms?: number;
-    total_lines_added?: number;
-    total_lines_removed?: number;
-  } | null;
   transcript_path?: string;
   cwd?: string;
   session_id?: string;
@@ -133,6 +126,5 @@ export interface RenderData {
   topModel: TopModelUsage | null;
   topModelStale: boolean; // gauge last refreshed > 30 min ago — rendered with a ~ prefix
   workspace: WorkspaceInfo | null;
-  costUsd: number | null;
   extra: string | null;
 }

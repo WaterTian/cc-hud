@@ -22,7 +22,6 @@ function makeData(overrides: Partial<RenderData> = {}): RenderData {
     topModel: null,
     topModelStale: false,
     workspace: null,
-    costUsd: null,
     extra: null,
     ...overrides,
   };
@@ -275,7 +274,7 @@ describe('render', () => {
     assert.ok(!out.includes(' · '));
   });
 
-  // ─── v0.8.0: stale gauge / spend cap / extra windows / cost ───
+  // ─── v0.8.0: stale gauge / spend cap / extra windows ───
 
   it('prefixes a stale top-model gauge with ~', () => {
     const out = strip(render(makeData({ topModel: { name: 'Fable', percent: 46, resetsAt: null }, topModelStale: true })));
@@ -302,15 +301,6 @@ describe('render', () => {
   it('lists unknown rate windows generically', () => {
     const out = strip(render(makeData({ extraLimits: [{ label: 'one day', percent: 7, resetsAt: null }] })));
     assert.match(out, /one day:7%/);
-  });
-
-  it('shows session cost after everything else', () => {
-    const out = strip(render(makeData({ costUsd: 0.4242, workspace: { name: 'x', branch: 'main', dirty: false } })));
-    assert.match(out, /x · main │ \$0\.42$/);
-  });
-
-  it('omits cost when null', () => {
-    assert.ok(!strip(render(makeData())).includes('$'));
   });
 
   // ─── hardening: control characters / NaN / unknown git status ───

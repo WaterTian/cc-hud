@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 320" font-family="ui-monospace, 'SF Mono', Menlo, 'Cascadia Mono', Consolas, monospace">
   <title>cc-hud — Claude Code statusline</title>
-  <desc>Animated preview of cc-hud: looping context bars, thinking-depth badge fade-in, top-model weekly gauge ticker, workspace branch and session cost, pulsing agent indicator, ticking rate-limit counter, blinking cursor, shimmering title, and a heartbeat dot. Showcases model · thinking depth · context · agents · rate limits · top-model gauge · balance across Claude, GLM, DeepSeek, MiniMax.</desc>
+  <desc>Animated preview of cc-hud: looping context bars, thinking-depth badge fade-in, top-model weekly gauge ticker, workspace branch, pulsing agent indicator, ticking rate-limit counter, blinking cursor, shimmering title, and a heartbeat dot. Showcases model · thinking depth · context · agents · rate limits · top-model gauge · balance across Claude, GLM, DeepSeek, MiniMax.</desc>
 
   <defs>
     <linearGradient id="titleBg" x1="0" y1="0" x2="0" y2="1">
@@ -37,12 +37,12 @@
     </circle>
 
     <rect x="800" y="33" width="60" height="18" rx="9" fill="none" stroke="#313244"/>
-    <text x="830" y="46" font-size="10.5" fill="#585b70" text-anchor="middle" letter-spacing="0.7">v0.9.0</text>
+    <text x="830" y="46" font-size="10.5" fill="#585b70" text-anchor="middle" letter-spacing="0.7">v0.10.0</text>
   </g>
 
   <!-- Subtitle + stable-launcher pill -->
   <g>
-    <text x="48" y="92" font-size="12" font-style="italic" fill="#585b70">CC-HUD v0.9.0 — <tspan fill="#cba6f7" font-weight="600" font-style="normal">workspace · cost · spend cap</tspan> · depth · context · agents</text>
+    <text x="48" y="92" font-size="12" font-style="italic" fill="#585b70">CC-HUD v0.10.0 — <tspan fill="#cba6f7" font-weight="600" font-style="normal">workspace · spend cap</tspan> · depth · context · agents</text>
     <rect x="640" y="79" width="124" height="17" rx="4" fill="#b4befe" fill-opacity="0.08" stroke="#b4befe" stroke-width="1">
       <animate attributeName="stroke-opacity" values="0.25;0.6;0.25" dur="3s" repeatCount="indefinite"/>
     </rect>
@@ -59,7 +59,7 @@
     <text x="320" y="138" fill="#45475a">░░░░░░░░░░</text>
     <text x="320" y="138" fill="#a6e3a1" clip-path="url(#barC)">██████████</text>
     <!-- "18%" rendered invisibly to reserve flow space; overlay ticker (below) paints the visible animated value. -->
-    <text x="419" y="138" xml:space="preserve"><tspan fill="#a6e3a1" fill-opacity="0">18%</tspan> <tspan fill="#6c7086">│</tspan> <tspan fill="#6c7086">7d:</tspan><tspan fill="#a6e3a1">35%</tspan> <tspan fill="#6c7086">│</tspan> <tspan fill="#6c7086">Fable:</tspan><tspan fill="#f9e2af" fill-opacity="0">51%</tspan> <tspan fill="#6c7086">│</tspan> <tspan fill="#74c7ec">cc-hud</tspan><tspan fill="#6c7086"> · </tspan><tspan fill="#a6e3a1">main*</tspan> <tspan fill="#6c7086">│</tspan> <tspan fill="#6c7086">$0.42</tspan></text>
+    <text x="419" y="138" xml:space="preserve"><tspan fill="#a6e3a1" fill-opacity="0">18%</tspan> <tspan fill="#6c7086">│</tspan> <tspan fill="#6c7086">7d:</tspan><tspan fill="#a6e3a1">35%</tspan> <tspan fill="#6c7086">│</tspan> <tspan fill="#6c7086">Fable:</tspan><tspan fill="#f9e2af" fill-opacity="0">51%</tspan> <tspan fill="#6c7086">│</tspan> <tspan fill="#74c7ec">cc-hud</tspan><tspan fill="#6c7086"> · </tspan><tspan fill="#a6e3a1">main*</tspan></text>
     <!-- Claude context % ticker: 0 → 9 → 18 → hold → 9 → 0, synced with Claude bar (begin 0.2s). -->
     <text x="419" y="138" fill="#a6e3a1" xml:space="preserve" opacity="1"> 0%<animate attributeName="opacity" calcMode="discrete" values="1;0;1" keyTimes="0;0.073;0.95" dur="6s" begin="0.2s" repeatCount="indefinite"/></text>
     <text x="419" y="138" fill="#a6e3a1" xml:space="preserve" opacity="0"> 9%<animate attributeName="opacity" calcMode="discrete" values="0;1;0;1;0" keyTimes="0;0.073;0.147;0.90;0.95" dur="6s" begin="0.2s" repeatCount="indefinite"/></text>
@@ -107,7 +107,7 @@
   <!-- Footer -->
   <g font-size="12" fill="#585b70">
     <line x1="48" y1="256" x2="852" y2="256" stroke="#313244" stroke-dasharray="3 3"/>
-    <text x="48" y="278" xml:space="preserve"><tspan fill="#94e2d5">●</tspan> zero dependencies   <tspan fill="#94e2d5">●</tspan> pure Node.js   <tspan fill="#94e2d5">●</tspan> crash-free on Windows   <tspan fill="#94e2d5">●</tspan> 174 tests   <tspan fill="#94e2d5">●</tspan> proxy-aware refresher</text>
+    <text x="48" y="278" xml:space="preserve"><tspan fill="#94e2d5">●</tspan> zero dependencies   <tspan fill="#94e2d5">●</tspan> pure Node.js   <tspan fill="#94e2d5">●</tspan> crash-free on Windows   <tspan fill="#94e2d5">●</tspan> tested on 3 OSes   <tspan fill="#94e2d5">●</tspan> proxy-aware refresher</text>
   </g>
 
 </svg>

@@ -1,6 +1,6 @@
 <!--
   cc-hud — Claude Code statusline plugin
-  Shows: model name, thinking depth (reasoning effort), context window usage (progress bar), active subagents, rate limits (5h/7d/spend cap) with reset countdown, top-model weekly gauge (Opus/Fable), workspace folder · branch, session cost, third-party balance/quota
+  Shows: model name, thinking depth (reasoning effort), context window usage (progress bar), active subagents, rate limits (5h/7d/spend cap) with reset countdown, top-model weekly gauge (Opus/Fable), workspace folder · branch, third-party balance/quota
   Pure Node.js, zero dependencies, crash-free on Windows (no Bun)
 
   ## Auto-install (for Claude Code AI agents)
@@ -8,14 +8,15 @@
   Step 2: /plugin install cc-hud@cc-hud
   Step 3: /reload-plugins
   Step 4: /cc-hud:setup  (idempotent; v0.5.0+ installs a launcher so future upgrades only need /plugin marketplace update cc-hud + /reload-plugins, no re-setup)
+  Agent reference: AGENTS.md — verification command, runtime contract, every file / process / endpoint touched, env vars, debug recipes
 
   Keywords: claude-code plugin statusline status-bar hud monitoring context-window rate-limit reset-countdown agents windows crash-free zero-dependency catppuccin deepseek minimax glm thinking-depth reasoning-effort effort-level fable opus-limit top-model weekly-gauge
 -->
 
 <p align="center">
   <picture>
-    <source srcset="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.svg?v=0.9.0" type="image/svg+xml" />
-    <img src="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.png?v=0.9.0" alt="cc-hud preview — model, thinking depth, context bar, agents, rate limits, top-model gauge, balance" width="900" />
+    <source srcset="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.svg?v=0.10.0" type="image/svg+xml" />
+    <img src="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.png?v=0.10.0" alt="cc-hud preview — model, thinking depth, context bar, agents, rate limits, top-model gauge, balance" width="900" />
   </picture>
 </p>
 
@@ -79,7 +80,7 @@
   <td align="center" width="17%"><h3>★</h3><b>Depth & Top Model</b><br/><sub>Thinking-depth badge<br/>Opus/Fable weekly gauge</sub></td>
   <td align="center" width="17%"><h3>◐</h3><b>Agents</b><br/><sub>Running subagents<br/>with type & model</sub></td>
   <td align="center" width="17%"><h3>%</h3><b>Rate Limits</b><br/><sub>5h / 7d / spend cap<br/>+ reset countdown</sub></td>
-  <td align="center" width="17%"><h3>⎇</h3><b>Workspace</b><br/><sub>folder · branch*<br/>+ session cost</sub></td>
+  <td align="center" width="17%"><h3>⎇</h3><b>Workspace</b><br/><sub>folder · branch*<br/>+ dirty marker</sub></td>
   <td align="center" width="17%"><h3>◧</h3><b>Color</b><br/><sub><a href="https://github.com/catppuccin/catppuccin">Catppuccin Mocha</a><br/>dual-tone gradient</sub></td>
   <td align="center" width="14%"><h3>0</h3><b>Dependencies</b><br/><sub>Zero. Node.js<br/>built-ins only</sub></td>
 </tr>
@@ -99,6 +100,8 @@ Inside Claude Code:
 ```
 
 **Done** — no restart needed; `/reload-plugins` hot-loads the HUD.
+
+Installing on someone's behalf as an AI agent, or wiring cc-hud into another tool? [AGENTS.md](AGENTS.md) has the exact steps, a one-line verification command, and the full runtime contract (stdin fields read, files and endpoints touched, timing budgets).
 
 > [!NOTE]
 > `/cc-hud:setup` installs a tiny launcher at `~/.claude/bin/cc-hud-launcher.cjs` (under `$CLAUDE_CONFIG_DIR/bin/` when that variable is set) and points `statusLine.command` at it — quoted, forward slashes, so a Windows path or a home directory with a space survives the shell. It is **idempotent** — re-running migrates old version-pinned paths and skips when already current. If `statusLine` is managed by [`cc-bot`](https://github.com/WaterTian/cc-bot)'s shim, setup detects this and leaves it alone (the shim already wraps cc-hud transparently).
@@ -198,7 +201,7 @@ Claude Code ──stdin JSON──→  ~/.claude/bin/cc-hud-launcher.cjs   ← s
 cc-hud shows your current **thinking depth** (the model's reasoning effort — `Low` / `Medium` / `High` / `XHigh` / `Max`) next to the model name, plus the **top-tier-model weekly gauge** — the "Current week (Opus / Fable)" meter from `/usage` that the statusline JSON doesn't expose:
 
 ```
-[Fable 5.1 · XHigh] █▊░░░░░░░░ 18% (1M) │ 5h:1% (4.5h) │ 7d:35% (4.1d) │ Fable:51% │ cc-hud · main* │ $0.42
+[Fable 5.1 · XHigh] █▊░░░░░░░░ 18% (1M) │ 5h:1% (4.5h) │ 7d:35% (4.1d) │ Fable:51% │ cc-hud · main*
 ```
 
 - **Thinking depth** comes from the statusline stdin (`effort.level`), falling back to the session transcript on older Claude Code builds — **zero network**, works on every backend. The badge hides itself when neither carries an effort.
@@ -214,11 +217,10 @@ cc-hud shows your current **thinking depth** (the model's reasoning effort — `
 
   A 401/404/500 is taken as the server's answer and not retried. `CC_HUD_CURL=/path/to/curl` picks a different curl binary (default: `curl` on `PATH`).
 
-### Workspace, spend cap & cost
+### Workspace & spend cap
 
 - **`cc-hud · main*`** — current folder and git branch; `*` marks uncommitted tracked changes. Outside a repo (or on a detached HEAD) only the folder shows. Worktree sessions reuse the branch Claude Code already reports.
 - **`spend:$12/$50 (3d)`** — the gateway spend limit (`rate_limits.spend_limit`), when your org sets one. Falls back to a bare percentage if the dollar figures aren't exposed.
-- **`$0.42`** — session cost estimate from Claude Code (`cost.total_cost_usd`); hidden while it is $0; set `CC_HUD_NO_COST=1` to hide it always.
 - **`—%`** in the context bar — Claude Code has not reported usage yet (start of session, or right after `/compact` until the next API call); it is not an empty context.
 - **Branch markers** — `*` = uncommitted changes; `?` = `git status` failed or exceeded its 800 ms budget (unknown, never shown as clean).
 - Any other `rate_limits` window Claude Code adds later is listed as-is (`one day:7%`) rather than dropped.
@@ -230,7 +232,6 @@ cc-hud shows your current **thinking depth** (the model's reasoning effort — `
 | --- | --- |
 | `CLAUDE_CONFIG_DIR` | Claude Code's config directory (default `~/.claude`). cc-hud reads `.credentials.json` and `plugins/installed_plugins.json` from it, and `/cc-hud:setup` puts the launcher in `<dir>/bin/`. |
 | `CC_HUD_NO_REFRESH=1` | Never spawn the background usage refresher (no network at all on the official backend). |
-| `CC_HUD_NO_COST=1` | Hide the session-cost segment. |
 | `CC_HUD_EXTRA_FILE=<path>` | Show the file's first line as an extra segment (see [Other backends](#other-backends)). |
 | `CC_HUD_CURL=<path>` | curl binary for proxied requests and the WAF fallback (default `curl`). |
 | `HTTPS_PROXY` / `https_proxy` / `ALL_PROXY` / `all_proxy` | When set, usage requests go through curl only (native `fetch` ignores proxies and is skipped). |
@@ -291,18 +292,19 @@ Set the `CC_HUD_EXTRA_FILE` env var to any file whose first line is the text to 
 ```bash
 npm install
 npm run build      # compile TypeScript → dist/
-npm test           # 227 tests (node:test; running the .ts tests needs Node ≥ 22.6 for type stripping — the shipped dist/ runs on ≥ 18)
+npm test           # build + node:test suite (running the .ts tests needs Node ≥ 22.6 for type stripping — the shipped dist/ runs on ≥ 18)
 ```
 
 Project layout:
 
 | Path | Purpose |
 | --- | --- |
-| `src/` | TypeScript source — entry, render, model normalize, transcript (agents + effort fallback), git workspace, shared cache + HTTP (proxy, curl fallback), Claude gauge / DeepSeek / MiniMax / GLM collectors, detached refresher |
+| `src/` | TypeScript source — entry, render, model normalize, transcript (agents + effort fallback), git workspace, shared cache (detached + inline disciplines) + HTTP (native, curl / proxy), Claude gauge / DeepSeek / MiniMax / GLM collectors, detached refresher |
 | `scripts/launcher.cjs` | Stable-path launcher (`/cc-hud:setup` copies it to `~/.claude/bin/`) |
 | `commands/setup.md` | `/cc-hud:setup` slash command |
 | `tests/` | `node:test` unit tests (TS + CJS) |
 | `dist/` | Compiled output, committed |
+| `AGENTS.md` | Agent-oriented reference — runtime contract, files / processes / endpoints touched, env vars, verify & debug recipes |
 
 <br/>
 

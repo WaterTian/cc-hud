@@ -1,3 +1,6 @@
+// Transcript tail reader — last 64 KB of the session JSONL → running
+// subagents (Agent tool_use without a matching tool_result) and the latest
+// main-chain reasoning effort. Any read / parse failure → EMPTY.
 import { open, stat } from 'node:fs/promises';
 import type { AgentEntry } from './types.js';
 

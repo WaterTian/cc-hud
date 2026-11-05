@@ -1,3 +1,6 @@
+// Reads Claude Code's statusline JSON from stdin. Anything that is not a plain
+// object (TTY, empty, malformed, array, scalar) becomes {} — the renderer then
+// prints the bare fallback line instead of crashing.
 import type { StdinData } from './types.js';
 
 export async function readStdin(): Promise<StdinData> {

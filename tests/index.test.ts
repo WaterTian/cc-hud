@@ -42,7 +42,6 @@ const FULL = {
     spend_limit: { used_percentage: 24, used_usd: 12, limit_usd: 50, period: 'weekly' },
     one_day: { used_percentage: 7 },
   },
-  cost: { total_cost_usd: 1.237 },
 };
 
 describe('dist/index.js end-to-end', () => {
@@ -61,7 +60,7 @@ describe('dist/index.js end-to-end', () => {
     assert.equal(r.code, 0);
     assert.equal(
       r.out,
-      '[Fable 5.1 · XHigh] ███▊░░░░░░ 37% (1M) │ 5h:11% │ 7d:15% │ spend:$12/$50 │ one day:7% │ notes │ $1.24',
+      '[Fable 5.1 · XHigh] ███▊░░░░░░ 37% (1M) │ 5h:11% │ 7d:15% │ spend:$12/$50 │ one day:7% │ notes',
     );
   });
 
@@ -189,24 +188,13 @@ describe('dist/index.js end-to-end', () => {
     assert.equal(r.out, '[Fable 5.1] █░░░░░░░░░ 10% │ 5h:1% │ ~Fable:46%');
   });
 
-  it('CC_HUD_NO_COST hides the cost segment', async () => {
+  it('ignores stdin cost — there is no session-cost segment', async () => {
     const r = await run(JSON.stringify({
       model: { id: 'claude-fable-5-1' },
       context_window: { used_percentage: 10, current_usage: { input_tokens: 1 } },
       cost: { total_cost_usd: 3 },
-    }), home, { CC_HUD_NO_COST: '1' });
+    }), home);
     assert.equal(r.out, '[Fable 5.1] █░░░░░░░░░ 10%');
-  });
-
-  it('CC_HUD_NO_COST=0 / false / empty leave the cost segment on', async () => {
-    for (const v of ['0', 'false', '']) {
-      const r = await run(JSON.stringify({
-        model: { id: 'claude-fable-5-1' },
-        context_window: { used_percentage: 10, current_usage: { input_tokens: 1 } },
-        cost: { total_cost_usd: 3 },
-      }), home, { CC_HUD_NO_COST: v });
-      assert.equal(r.out, '[Fable 5.1] █░░░░░░░░░ 10% │ $3.00', `CC_HUD_NO_COST=${JSON.stringify(v)}`);
-    }
   });
 
   it('finishes well inside the 2s hard timeout', async () => {

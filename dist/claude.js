@@ -1,3 +1,7 @@
+// Official backend: the top-tier-model weekly gauge (the "Current week
+// (Opus / Fable)" meter in /usage, absent from the statusline stdin). Tick
+// path reads ~/.cache/cc-hud/claude-plan.json only; refreshClaudePlan() runs
+// in the detached refresher and makes the OAuth call.
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { homedir } from 'node:os';

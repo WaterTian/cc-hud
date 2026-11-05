@@ -3,8 +3,11 @@ import { execFile } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-// JSON GET for the detached refresher. Behind a proxy: curl only. Otherwise:
-// native fetch first, curl as fallback.
+// JSON GET, two flavours:
+//   • fetchJson — for the detached refresher. Behind a proxy: curl only.
+//     Otherwise native fetch first, curl as fallback.
+//   • fetchJsonNative — for the inline collectors: native fetch only, under a
+//     budget too tight to spawn curl. null on any failure.
 //
 // Why curl at all: Cloudflare's WAF 403s Node's TLS fingerprint on
 // api.anthropic.com/api/oauth/* while letting curl through (verified
@@ -15,6 +18,10 @@ import { join } from 'node:path';
 // Windows 10+, and Linux.
 
 const DEFAULT_TIMEOUT_MS = 2000;
+// Inline collectors (balance / quota on a cache miss) run inside the tick:
+// their fetch must end well before index.ts's 2 s hard exit, or a hung
+// endpoint blanks the whole bar instead of just its own segment.
+export const INLINE_TIMEOUT_MS = 1200;
 
 export interface ProxyConfig { proxy?: string }
 
@@ -47,6 +54,16 @@ async function fetchNative(url: string, headers: Record<string, string>, timeout
     clearTimeout(timer);
     timer.unref();
   }
+}
+
+// Native-only JSON GET for the inline collectors — see INLINE_TIMEOUT_MS.
+export async function fetchJsonNative(
+  url: string,
+  headers: Record<string, string>,
+  timeoutMs = INLINE_TIMEOUT_MS,
+): Promise<unknown | null> {
+  const r = await fetchNative(url, headers, timeoutMs);
+  return r.kind === 'ok' ? r.data : null;
 }
 
 // The request goes via a curl config on stdin so the token never appears in

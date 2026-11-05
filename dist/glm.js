@@ -1,85 +1,32 @@
-import { readFileSync, mkdirSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
-import { writeFileAtomic } from './cache.js';
-const CACHE_DIR = '.cache/cc-hud';
-const TTL = 5 * 60 * 1000; // 5 min — same as balance.ts / mmx.ts
-// Inline fetch budget — must end well before the 2s hard exit in index.ts
-// (which started earlier), or a hanging endpoint blanks the whole bar.
-const TIMEOUT_MS = 1200;
-function cacheFile() {
-    return join(homedir(), CACHE_DIR, 'glm-balance.json');
-}
-// Critical isolation: non-GLM backends skip the whole module
-function isGlm() {
-    const base = process.env.ANTHROPIC_BASE_URL;
-    return !!base && (base.includes('bigmodel.cn') || base.includes('api.z.ai'));
-}
-function host() {
-    return process.env.ANTHROPIC_BASE_URL?.includes('api.z.ai')
-        ? 'https://api.z.ai'
-        : 'https://open.bigmodel.cn';
-}
-function readCache() {
-    try {
-        return JSON.parse(readFileSync(cacheFile(), 'utf8'));
-    }
-    catch {
-        return null;
-    }
-}
-function writeCache(balance) {
-    try {
-        mkdirSync(join(homedir(), CACHE_DIR), { recursive: true });
-        writeFileAtomic(cacheFile(), JSON.stringify({ balance, ts: Date.now() }));
-    }
-    catch { /* best effort */ }
-}
+// GLM (Zhipu): account balance as the "extra" segment (`¥88.50`). Active when
+// ANTHROPIC_BASE_URL contains "bigmodel.cn" (CN) or "api.z.ai" (global) and
+// ANTHROPIC_AUTH_TOKEN is set. Cache: ~/.cache/cc-hud/glm-balance.json (5 min).
+import { cachedInline } from './cache.js';
+import { fetchJsonNative } from './http.js';
+const isGlm = (base = process.env.ANTHROPIC_BASE_URL) => !!base && (base.includes('bigmodel.cn') || base.includes('api.z.ai'));
+const host = () => process.env.ANTHROPIC_BASE_URL?.includes('api.z.ai') ? 'https://api.z.ai' : 'https://open.bigmodel.cn';
+// The report carries its figure under several names, sometimes one level
+// down under `data`; the first usable number / non-empty string wins.
 function extractBalance(data) {
     if (!data || typeof data !== 'object')
         return null;
     const d = data;
-    const inner = d.data ?? {};
-    const candidates = [
-        inner.balance,
-        inner.total_balance,
-        inner.amount,
-        d.balance,
-        d.total_balance,
-        d.amount,
-    ];
-    for (const val of candidates) {
-        if (typeof val === 'number')
-            return `¥${val.toFixed(2)}`;
-        if (typeof val === 'string' && val.trim()) {
-            return val.trim().startsWith('¥') ? val.trim() : `¥${val.trim()}`;
+    // GLM reports success / error in a JSON-level `code`, not the HTTP status
+    if (d.code && d.code !== 200)
+        return null;
+    const inner = (d.data ?? {});
+    for (const src of [inner, d]) {
+        for (const key of ['balance', 'total_balance', 'amount']) {
+            const val = src[key];
+            if (typeof val === 'number')
+                return `¥${val.toFixed(2)}`;
+            if (typeof val === 'string' && val.trim()) {
+                const s = val.trim();
+                return s.startsWith('¥') ? s : `¥${s}`;
+            }
         }
     }
     return null;
-}
-async function fetchBalance(apiKey) {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-    try {
-        const resp = await fetch(`${host()}/api/biz/account/query-customer-account-report`, {
-            headers: { Authorization: `Bearer ${apiKey}` },
-            signal: ctrl.signal,
-        });
-        if (!resp.ok)
-            return null;
-        const data = (await resp.json());
-        // GLM wraps success/error in JSON-level `code` field
-        if (data.code && data.code !== 200)
-            return null;
-        return extractBalance(data);
-    }
-    catch {
-        return null;
-    }
-    finally {
-        clearTimeout(timer);
-        timer.unref();
-    }
 }
 export async function getGlmBalance() {
     if (!isGlm())
@@ -87,14 +34,5 @@ export async function getGlmBalance() {
     const apiKey = process.env.ANTHROPIC_AUTH_TOKEN;
     if (!apiKey)
         return null;
-    const cached = readCache();
-    if (cached && Date.now() - cached.ts < TTL) {
-        return cached.balance;
-    }
-    const balance = await fetchBalance(apiKey);
-    if (balance) {
-        writeCache(balance);
-        return balance;
-    }
-    return cached?.balance ?? null;
+    return cachedInline('glm-balance', async () => extractBalance(await fetchJsonNative(`${host()}/api/biz/account/query-customer-account-report`, { Authorization: `Bearer ${apiKey}` })));
 }

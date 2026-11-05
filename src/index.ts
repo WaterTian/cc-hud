@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// Entry point — one statusline tick: stdin JSON → collectors (transcript,
+// git, caches) → render() → exactly ONE stdout line, exit 0. Never blocks
+// Claude Code: 2 s hard exit, and every failure degrades to a shorter line.
 import { readStdin } from './stdin.js';
 import { parseTranscript } from './transcript.js';
 import { render } from './render.js';
@@ -8,7 +11,6 @@ import { getMmxQuota } from './mmx.js';
 import { getGlmBalance } from './glm.js';
 import { getClaudePlan } from './claude.js';
 import { getWorkspace } from './git.js';
-import { envFlag } from './env.js';
 import { readFileSync } from 'node:fs';
 import type { ExtraLimit, RenderData, SpendLimit, SpendLimitWindow, StdinData } from './types.js';
 
@@ -141,8 +143,6 @@ async function main(): Promise<void> {
 
   const { spend, extras } = splitLimits(data.rate_limits);
 
-  const cost = num(data.cost?.total_cost_usd);
-
   const renderData: RenderData = {
     model: modelName.name,
     modelVariant,
@@ -158,7 +158,6 @@ async function main(): Promise<void> {
     topModel: plan?.topModel ?? null,
     topModelStale: plan?.stale ?? false,
     workspace,
-    costUsd: envFlag('CC_HUD_NO_COST') || cost == null || cost <= 0 ? null : cost,
     extra,
   };
 
@@ -171,7 +170,7 @@ const FALLBACK: RenderData = {
   model: 'Claude', modelVariant: null, contextPercent: null, agents: [],
   fiveHourPercent: null, sevenDayPercent: null, fiveHourResetsAt: null, sevenDayResetsAt: null,
   spendLimit: null, extraLimits: [], thinkingDepth: null, topModel: null, topModelStale: false,
-  workspace: null, costUsd: null, extra: null,
+  workspace: null, extra: null,
 };
 
 main().catch(() => {

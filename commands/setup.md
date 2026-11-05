@@ -65,7 +65,19 @@ Branch on the current `statusLine.command`:
 
 When writing, **merge** — never wipe other top-level keys in `settings.json`.
 
-## Step 4 — Confirm
+## Step 4 — Verify
+
+Run the launcher once with a minimal statusline payload (refresh spawning disabled so nothing touches the network):
+
+```bash
+echo '{"model":{"id":"claude-fable-5-1"},"context_window":{"used_percentage":13}}' | CC_HUD_NO_REFRESH=1 node "<CFG>/bin/cc-hud-launcher.cjs"
+```
+
+- Output contains `Fable 5.1` and `13%` (with ANSI colour codes around them) → wired correctly, continue to Step 5.
+- Output is `[cc-hud] plugin not found — run /cc-hud:setup` → the launcher found no marketplace install in `<CFG>/plugins/installed_plugins.json`. Tell the user to run `/plugin marketplace add WaterTian/cc-hud` and `/plugin install cc-hud@cc-hud`, then `/reload-plugins` and `/cc-hud:setup` again. Skip Step 5.
+- Anything else (empty, an error) → show the user the exact output; the settings written above are still valid, but the HUD will not render until the cause (usually `node` missing from the status-line shell's `PATH`) is fixed.
+
+## Step 5 — Confirm
 
 Tell the user (single block):
 

@@ -4,16 +4,17 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { envFlag } from './env.js';
-// One cache discipline for every collector that goes through the detached
-// refresher: the statusline tick only ever READS ~/.cache/cc-hud/<name>.json;
-// all network work happens in refresh.ts, which WRITES it.
-// (Currently wired: the Claude top-model gauge. The third-party balance
-// collectors still fetch inline on a cache miss.)
+// One cache directory for every collector: ~/.cache/cc-hud/<name>.json,
+// written atomically. Two disciplines share it:
+//   • detached (serveCache + storeRefresh) — the tick only READS; refresh.ts
+//     does the network and WRITES. Used by the Claude top-model gauge.
+//   • inline (cachedInline) — a miss fetches inside the tick under a short
+//     budget. Used by the third-party balance / quota collectors.
 export const TTL = 5 * 60 * 1000; // payload considered current
 export const REFRESH_COOLDOWN = 30 * 1000; // min gap between refresher spawns
 export const STALE_MS = 30 * 60 * 1000; // no successful fetch for this long → stale
-const dir = () => join(homedir(), '.cache', 'cc-hud');
-const file = (name) => join(dir(), `${name}.json`);
+export const cacheDir = () => join(homedir(), '.cache', 'cc-hud');
+const file = (name) => join(cacheDir(), `${name}.json`);
 export function readCache(name) {
     try {
         return JSON.parse(readFileSync(file(name), 'utf8'));
@@ -39,7 +40,7 @@ export function writeFileAtomic(path, data) {
 }
 export function writeCache(name, entry) {
     try {
-        mkdirSync(dir(), { recursive: true });
+        mkdirSync(cacheDir(), { recursive: true });
         writeFileAtomic(file(name), JSON.stringify(entry));
     }
     catch { /* best effort */ }
@@ -86,4 +87,22 @@ export function serveCache(name, kind) {
         return serve(placeholder, now);
     }
     return serve(cached, now);
+}
+// Inline discipline (third-party balance / quota collectors): a fresh entry
+// is served as is; a miss runs `fetcher` INSIDE the tick — it must keep its
+// own budget (http.INLINE_TIMEOUT_MS) — and writes the cache; a failed fetch
+// serves whatever was cached before, however old.
+export async function cachedInline(name, fetcher) {
+    const cached = readCache(name);
+    if (cached?.payload != null && Date.now() - cached.ts < TTL)
+        return cached.payload;
+    let fresh = null;
+    try {
+        fresh = await fetcher();
+    }
+    catch { /* collector failure → stale */ }
+    if (fresh == null)
+        return cached?.payload ?? null;
+    writeCache(name, { payload: fresh, ts: Date.now() });
+    return fresh;
 }

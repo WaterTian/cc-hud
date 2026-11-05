@@ -160,9 +160,5 @@ export function render(data) {
     if (data.extra) {
         segments.push(`${TEAL}${clean(data.extra)}${RESET}`);
     }
-    // Session cost (client-side list-price estimate from stdin `cost`)
-    if (data.costUsd != null) {
-        segments.push(`${OVERLAY}$${data.costUsd.toFixed(2)}${RESET}`);
-    }
     return segments.join(` ${OVERLAY}│${RESET} `);
 }

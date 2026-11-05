@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// Entry point — one statusline tick: stdin JSON → collectors (transcript,
+// git, caches) → render() → exactly ONE stdout line, exit 0. Never blocks
+// Claude Code: 2 s hard exit, and every failure degrades to a shorter line.
 import { readStdin } from './stdin.js';
 import { parseTranscript } from './transcript.js';
 import { render } from './render.js';
@@ -8,7 +11,6 @@ import { getMmxQuota } from './mmx.js';
 import { getGlmBalance } from './glm.js';
 import { getClaudePlan } from './claude.js';
 import { getWorkspace } from './git.js';
-import { envFlag } from './env.js';
 import { readFileSync } from 'node:fs';
 // Hard timeout — never block Claude Code
 const TIMEOUT_MS = 2000;
@@ -121,7 +123,6 @@ async function main() {
     // that don't carry it (Fable 5.1 on a 1M window reports 1000000 here).
     const modelVariant = modelName.variant ?? (size != null && size >= 1_000_000 ? `${Math.round(size / 1_000_000)}M` : null);
     const { spend, extras } = splitLimits(data.rate_limits);
-    const cost = num(data.cost?.total_cost_usd);
     const renderData = {
         model: modelName.name,
         modelVariant,
@@ -137,7 +138,6 @@ async function main() {
         topModel: plan?.topModel ?? null,
         topModelStale: plan?.stale ?? false,
         workspace,
-        costUsd: envFlag('CC_HUD_NO_COST') || cost == null || cost <= 0 ? null : cost,
         extra,
     };
     emit(render(renderData));
@@ -148,7 +148,7 @@ const FALLBACK = {
     model: 'Claude', modelVariant: null, contextPercent: null, agents: [],
     fiveHourPercent: null, sevenDayPercent: null, fiveHourResetsAt: null, sevenDayResetsAt: null,
     spendLimit: null, extraLimits: [], thinkingDepth: null, topModel: null, topModelStale: false,
-    workspace: null, costUsd: null, extra: null,
+    workspace: null, extra: null,
 };
 main().catch(() => {
     try {

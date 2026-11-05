@@ -90,7 +90,7 @@ describe('deepseek balance', () => {
       await getExtra();
       await getExtra();
       assert.equal(fetchCalls.length, 1);
-      assert.equal(JSON.parse(readFileSync(cachePath(), 'utf8')).balance, '¥13.44');
+      assert.equal(JSON.parse(readFileSync(cachePath(), 'utf8')).payload, '¥13.44');
       assert.deepEqual(readdirSync(join(tmpHome, '.cache', 'cc-hud')).filter(f => f.includes('.tmp-')), []);
     });
 

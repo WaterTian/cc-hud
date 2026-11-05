@@ -1,4 +1,4 @@
-// Boolean env switches (CC_HUD_NO_COST, CC_HUD_NO_REFRESH, …): any value turns
+// Boolean env switches (CC_HUD_NO_REFRESH, …): any value turns
 // the switch on except the conventional "off" spellings — "", "0", "false".
 export function envFlag(name) {
     const v = process.env[name];

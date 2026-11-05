@@ -2,8 +2,11 @@ import { readFileSync } from 'node:fs';
 import { execFile } from 'node:child_process';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-// JSON GET for the detached refresher. Behind a proxy: curl only. Otherwise:
-// native fetch first, curl as fallback.
+// JSON GET, two flavours:
+//   • fetchJson — for the detached refresher. Behind a proxy: curl only.
+//     Otherwise native fetch first, curl as fallback.
+//   • fetchJsonNative — for the inline collectors: native fetch only, under a
+//     budget too tight to spawn curl. null on any failure.
 //
 // Why curl at all: Cloudflare's WAF 403s Node's TLS fingerprint on
 // api.anthropic.com/api/oauth/* while letting curl through (verified
@@ -13,6 +16,10 @@ import { join } from 'node:path';
 // request would bypass the proxy the user configured. curl ships with macOS,
 // Windows 10+, and Linux.
 const DEFAULT_TIMEOUT_MS = 2000;
+// Inline collectors (balance / quota on a cache miss) run inside the tick:
+// their fetch must end well before index.ts's 2 s hard exit, or a hung
+// endpoint blanks the whole bar instead of just its own segment.
+export const INLINE_TIMEOUT_MS = 1200;
 // Proxy: environment first, then ~/.config/cc-hud/config.json { "proxy": "…" }
 // for statusline processes whose environment doesn't carry one.
 export function resolveProxy(env = process.env) {
@@ -45,6 +52,11 @@ async function fetchNative(url, headers, timeoutMs) {
         clearTimeout(timer);
         timer.unref();
     }
+}
+// Native-only JSON GET for the inline collectors — see INLINE_TIMEOUT_MS.
+export async function fetchJsonNative(url, headers, timeoutMs = INLINE_TIMEOUT_MS) {
+    const r = await fetchNative(url, headers, timeoutMs);
+    return r.kind === 'ok' ? r.data : null;
 }
 // The request goes via a curl config on stdin so the token never appears in
 // the argv list. Header values are restricted to a safe charset — a quote or

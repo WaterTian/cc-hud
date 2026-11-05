@@ -1,3 +1,6 @@
+// Workspace segment — folder name + git branch + dirty marker, two concurrent
+// git calls with an 800 ms budget each. Degrades, never fails: no repo →
+// folder only; status failure → dirty = null (rendered "?"), never "clean".
 import { execFile } from 'node:child_process';
 import type { WorkspaceInfo } from './types.js';
 

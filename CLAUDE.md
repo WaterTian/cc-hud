@@ -2,7 +2,9 @@
 
 ## 项目概述
 
-cc-hud — 精简的 Claude Code 单行状态栏插件，显示模型名称、思考深度（effort）、上下文用量、活跃子代理、速率限制（5h / 7d / spend cap）、顶级模型周用量、工作区（目录 · 分支）与会话费用。
+cc-hud — 精简的 Claude Code 单行状态栏插件，显示模型名称、思考深度（effort）、上下文用量、活跃子代理、速率限制（5h / 7d / spend cap）、顶级模型周用量、工作区（目录 · 分支）。
+
+面向 AI agent 的英文参考在 `AGENTS.md`（运行契约、读写的文件 / 进程 / 网络端点、环境变量、验证与调试步骤、改代码要守的不变量）。改动行为或接口时，README / AGENTS.md / 本文件一起更新。
 
 ## 技术栈
 
@@ -29,16 +31,17 @@ src/
   git.ts                    — 工作区段：目录名 + 分支 + 脏标记（800ms 预算，--no-optional-locks；status 失败 = 未知，不当 clean）
   claude.ts                 — 顶级模型周用量（OAuth usage API）：tick 只读缓存，网络全在 refresh.ts
   refresh.ts                — 分离式刷新子进程入口（node refresh.js <kind>，8s 预算，拉取后写缓存）
-  cache.ts                  — 缓存约定：~/.cache/cc-hud/<name>.json、TTL / 冷却 / stale 判定、原子写、spawn 刷新子进程
-  http.ts                   — JSON GET：配了代理只走 curl（Node fetch 不认代理，先试就会带着 token 直连），curl 失败不回退；无代理时原生 fetch 优先，传输失败或 WAF 403 回退 curl
+  cache.ts                  — 缓存约定：~/.cache/cc-hud/<name>.json、原子写；两种纪律：detached（serveCache：tick 只读 + spawn 刷新子进程，TTL / 冷却 / stale 判定）与 inline（cachedInline：采集器 tick 内拉取，失败退回旧值）
+  http.ts                   — JSON GET：fetchJson（刷新子进程用）配了代理只走 curl（Node fetch 不认代理，先试就会带着 token 直连），curl 失败不回退；无代理时原生 fetch 优先，传输失败或 WAF 403 回退 curl。fetchJsonNative（采集器用）仅原生 fetch，INLINE_TIMEOUT_MS = 1.2s，不起 curl
   env.ts                    — 布尔环境变量开关（"" / "0" / "false" 视为关）
-  balance.ts / glm.ts / mmx.ts  — DeepSeek / GLM / MiniMax 余额或配额采集（缓存未命中时 tick 内拉取，1.2s 预算）
+  balance.ts / glm.ts / mmx.ts  — DeepSeek / GLM / MiniMax 余额或配额采集：只剩后端判定 + 响应解析，缓存与拉取走 cache.cachedInline + http.fetchJsonNative（未命中时 tick 内拉取，1.2s 预算，失败退回旧值）
   types.ts                  — 类型定义
 scripts/launcher.cjs        — 稳定路径 launcher（setup 复制到 <cfg>/bin/cc-hud-launcher.cjs；找不到插件时打印一行提示而非空白）
 dist/                       — 编译输出（提交到仓库，CI 校验与 src 同步）
 tests/*.test.ts(.cjs)       — node:test 单元 + 端到端测试（render / model / transcript / git / http / cache / env / claude / balance / glm / mmx / launcher / index）
 .claude-plugin/marketplace.json — marketplace 入口（`/plugin marketplace add WaterTian/cc-hud` 读它；发版时和 plugin.json 一起 bump）
 .github/workflows/ci.yml    — CI：ubuntu / windows / macos × node 22 / 24 测试矩阵 + dist 同步检查 + node 18 / 20 运行时 smoke
+AGENTS.md                   — 面向 AI agent 的英文参考（运行契约 / 文件与网络 / 环境变量 / 验证与调试 / 不变量），与本文件同步维护
 scripts/ds-balance-cache.sh — DeepSeek 余额写成一行文件给 CC_HUD_EXTRA_FILE 的示例脚本
 scripts/mmx-debug.mjs       — MiniMax 配额接口调试脚本（不进 src）
 preview.html / cc-hud-preview.{svg,png} — README 顶部预览图源文件与产物（图变了再改 README 里的 ?v= 缓存参数）

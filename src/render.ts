@@ -1,3 +1,7 @@
+// Pure renderer: RenderData → one ANSI-256 colored line. No IO; the only
+// clock use is the reset countdowns. Segment order:
+//   [model · depth] context-bar │ agents │ 5h │ 7d │ top-model │ spend │ … │ folder · branch │ extra
+// Missing data drops its segment — the bar never shows a fake 0.
 import type { RenderData } from './types.js';
 
 // — Catppuccin Mocha palette (ANSI 256) —
@@ -174,11 +178,6 @@ export function render(data: RenderData): string {
   // Extra (generic pluggable segment, e.g. balance for non-Anthropic backends)
   if (data.extra) {
     segments.push(`${TEAL}${clean(data.extra)}${RESET}`);
-  }
-
-  // Session cost (client-side list-price estimate from stdin `cost`)
-  if (data.costUsd != null) {
-    segments.push(`${OVERLAY}$${data.costUsd.toFixed(2)}${RESET}`);
   }
 
   return segments.join(` ${OVERLAY}│${RESET} `);

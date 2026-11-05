@@ -1,7 +1,7 @@
 {
   "name": "cc-hud",
-  "version": "0.9.4",
-  "description": "Compact statusline HUD for Claude Code — context, agents, rate limits",
+  "version": "0.10.0",
+  "description": "Single-line statusline HUD for Claude Code — model, thinking depth, context bar, subagents, 5h/7d/spend limits, top-model weekly gauge, folder · branch; DeepSeek / GLM / MiniMax balance",
   "author": "WaterTian",
   "license": "MIT",
   "homepage": "https://github.com/WaterTian/cc-hud#readme",
@@ -24,7 +24,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "test": "npm run build && node --test",
-    "test:stdin": "npm run build && echo '{\"model\":{\"id\":\"claude-fable-5-1\",\"display_name\":\"Fable 5.1\"},\"effort\":{\"level\":\"high\"},\"context_window\":{\"used_percentage\":13,\"context_window_size\":1000000},\"rate_limits\":{\"five_hour\":{\"used_percentage\":18},\"seven_day\":{\"used_percentage\":2}},\"workspace\":{\"current_dir\":\"/tmp/cc-hud\"},\"cost\":{\"total_cost_usd\":0.42}}' | node dist/index.js"
+    "test:stdin": "npm run build && echo '{\"model\":{\"id\":\"claude-fable-5-1\",\"display_name\":\"Fable 5.1\"},\"effort\":{\"level\":\"high\"},\"context_window\":{\"used_percentage\":13,\"context_window_size\":1000000},\"rate_limits\":{\"five_hour\":{\"used_percentage\":18},\"seven_day\":{\"used_percentage\":2}},\"workspace\":{\"current_dir\":\"/tmp/cc-hud\"}}' | node dist/index.js"
   },
   "files": [
     "dist/",
