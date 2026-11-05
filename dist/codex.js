@@ -19,6 +19,7 @@ export const CODEX_ITEMS = [
 const equal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const isItems = (v) => v === null || (Array.isArray(v) && v.every(s => typeof s === 'string'));
 const say = (line) => { process.stdout.write(line + '\n'); };
+const sayColorNote = () => say('Limit colors follow the active Codex theme, not remaining quota. Optional `theme codex` uses neutral teal and also changes syntax highlighting.');
 export const codexHome = () => resolve(process.env.CODEX_HOME || join(homedir(), '.codex'));
 function readBackup(file) {
     let raw;
@@ -82,6 +83,8 @@ export async function codexCommand(action) {
             say(`${configured ? 'Configured' : 'Not configured'}: Codex native footer (${version})`);
             if (!configured)
                 process.exitCode = 1;
+            else
+                sayColorNote();
             return;
         }
         if (action === 'restore') {
@@ -99,7 +102,8 @@ export async function codexCommand(action) {
                 throw new Error('The saved footer is overridden by another Codex configuration layer.');
             if (backup && !equal(backup.applied, CODEX_ITEMS))
                 writeBackup(backupFile, { ...backup, applied: CODEX_ITEMS });
-            return say('Codex native footer already configured; nothing changed.');
+            say('Codex native footer already configured; nothing changed.');
+            return sayColorNote();
         }
         if (backup && !ours(before.local) && !equal(before.local, backup.previous)) {
             throw new Error('The footer was edited after setup; setup left it untouched.');
@@ -113,5 +117,6 @@ export async function codexCommand(action) {
         if (!equal(after.effective, CODEX_ITEMS))
             throw new Error('Footer saved, but another Codex configuration layer overrides it.');
         say('Codex native footer configured. Restart Codex to load it.');
+        sayColorNote();
     });
 }

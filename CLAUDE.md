@@ -81,11 +81,11 @@ Codex（仅显式命令，与 tick 无关）：cc-hud <action> codex → 临时 
 - 定位：一次性把 Codex **自己的** footer 配成近似 Claude HUD 的信息集（模型/深度 → 上下文已用 → 5h/周额度剩余 → 项目 → 分支），之后由 Codex 原生负责数据、刷新、配色。没有常驻进程、hook、MCP、transcript 扫描或额外额度请求；不用 `-c` 包装正常启动（会绕过 Codex 的共享 daemon）。
 - 入口：npm bin 指向 `dist/cli.js`。无参数 + stdin 管道 = 原来的 Claude 渲染器；无参数 + TTY 打印帮助。`cc-hud setup|check|restore|theme|restore-theme codex`、`--help`、`--version`。Claude 的 launcher 直接跑 `dist/index.js`，不经过 cli，零影响。
 - 配置通道（`codex-rpc.ts`）：临时起 `codex app-server --stdio`，`config/read` → `config/batchWrite`（`expectedVersion` 防并发）→ 回读校验；10s 总超时，SIGTERM 后 500ms SIGKILL；忽略服务端通知和服务端发起的请求；error body 不回显（可能含私密配置）。要求 Codex ≥ 0.166.0，找不到 / 版本过低分别报错；`CC_HUD_CODEX` 指定可执行文件或 npm `bin/codex.js`。
-- footer（`codex.ts`）：只改 `tui.status_line`；单字段备份 `$CODEX_HOME/cc-hud-native.json`（`{schema, previous, applied}`，0600）。幂等；用户事后改过 → setup / restore 都只报告不覆盖；"我们的"= 当前预设或上次 applied 的预设，所以发版换预设后 restore 仍能还原（setup 会把 `applied` 刷新为新预设）。
-- 主题（`codex-theme.ts`，可选）：装 `assets/cc-hud.tmTheme` 到 `$CODEX_HOME/themes/cc-hud.tmTheme`，设 `tui.theme` + `tui.status_line_use_colors`，备份 `cc-hud-theme.json`（含安装文件 sha256 `asset`：新版本只覆盖自己装的文件，用户改过的拒绝并提示删除路径）。即使配置已匹配，也记录原值和文件哈希，保证后续主题升级可用。旧名 `cc-hud-mocha` 视为自己的。主题会连带改代码高亮，所以独立于 setup。
+- footer（`codex.ts`）：只改 `tui.status_line`；单字段备份 `$CODEX_HOME/cc-hud-native.json`（`{schema, previous, applied}`，0600）。幂等；用户事后改过 → setup / restore 都只报告不覆盖；"我们的"= 当前预设或上次 applied 的预设，所以发版换预设后 restore 仍能还原（setup 会把 `applied` 刷新为新预设）。setup / 已配置的 check 会提示限额颜色由主题决定，与剩余百分比无关，并提示可选主题。
+- 主题（`codex-theme.ts`，可选）：装 `assets/cc-hud.tmTheme` 到 `$CODEX_HOME/themes/cc-hud.tmTheme`，设 `tui.theme` + `tui.status_line_use_colors`，备份 `cc-hud-theme.json`（含安装文件 sha256 `asset`：新版本只覆盖自己装的文件，用户改过的拒绝并提示删除路径）。即使配置已匹配，也记录原值和文件哈希，保证后续主题升级可用；升级后需再运行 `theme codex` 刷新已装文件。旧名 `cc-hud-mocha` 视为自己的。限额字段为固定中性青绿色，不表示余量健康；主题会连带改代码高亮，所以独立于 setup。
 - 失败处理：报错不代表自动回滚；备份、已安装的主题文件或已保存的用户层字段可能保留（例如被其他配置层覆盖）。根据报错重试或执行对应 restore。
 - 分发：根 `plugin.json`（Codex 插件清单）+ `skills/codex-setup/SKILL.md`（onboarding skill；Claude Code 也会把它当 skill 载入，描述里已注明 Claude 用 /cc-hud:setup）；复用现有 marketplace 仓库。`codex plugin marketplace add WaterTian/cc-hud` → `codex plugin add cc-hud@cc-hud`；`marketplace upgrade` 同步更新已装插件，新会话生效。
-- 视觉边界：Codex 额度显示**剩余**、Claude 显示**已用**；分隔符 / 配色由 Codex 控制，无进度条、不按百分比变色；`/compact` 期间可能短暂显示 0%。
+- 视觉边界：Codex 额度显示**剩余**、Claude 显示**已用**；Codex 把 5h / weekly 映射到语法主题的 `constant.language`（回退 `storage.type`），按字段固定取色，不按百分比变色，因此原主题可能把 `93% left` 显示为红色。cc-hud 主题把 `constant.numeric` 的绿色与限额 scope 分离，将限额改为中性青绿色；`1% left` 与 `93% left` 仍同色。分隔符 / 配色由 Codex 控制，无进度条；`/compact` 期间可能短暂显示 0%。
 - 测试：`tests/codex.test.ts` 用 `tests/fixtures/fake-codex.cjs` 模拟 app-server（挂死 / 并发 / 写失败 / 版本开关）；`CC_HUD_CODEX_LIVE_TEST=1 npm test` 加测真实 Codex（隔离 CODEX_HOME、离线 provider），需本机 Codex ≥ 0.166.0。`npm test` 经 `scripts/test.cjs` 显式枚举 ts/cjs 测试并开 type stripping。
 
 ## 发版流程

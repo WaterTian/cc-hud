@@ -196,10 +196,10 @@ stdin is a pipe and prints help on a TTY.
 
 | Command | Reads / writes | Behaviour |
 | --- | --- | --- |
-| `setup codex` | `tui.status_line` in the user `config.toml`: `config/read` → `config/batchWrite` (`expectedVersion` guard) → re-read | Preset `model-with-reasoning`, `context-used`, `five-hour-limit`, `weekly-limit`, `project-name`, `git-branch`. Idempotent. Writes `$CODEX_HOME/cc-hud-native.json` `{ schema, previous, applied }` (mode 600) only when it first takes the field over; refreshes `applied` when a release changed the preset. A footer edited since, or overridden by another config layer, is reported — never overwritten. |
-| `check codex` | read only | "Configured" iff both the user layer and the effective config equal the preset. No Codex spawn when `$CODEX_HOME` does not exist. |
+| `setup codex` | `tui.status_line` in the user `config.toml`: `config/read` → `config/batchWrite` (`expectedVersion` guard) → re-read | Preset `model-with-reasoning`, `context-used`, `five-hour-limit`, `weekly-limit`, `project-name`, `git-branch`. Idempotent. Writes `$CODEX_HOME/cc-hud-native.json` `{ schema, previous, applied }` (mode 600) only when it first takes the field over; refreshes `applied` when a release changed the preset. A footer edited since, or overridden by another config layer, is reported — never overwritten. On success, explains that limit colors come from the active theme, independent of remaining quota. |
+| `check codex` | read only | "Configured" iff both the user layer and the effective config equal the preset; then prints the same color note. No Codex spawn when `$CODEX_HOME` does not exist. |
 | `restore codex` | writes `previous` back (JSON null removes a key that was absent), deletes the backup | Treats the current preset or the one previously applied as "ours"; anything else is a user edit and is left alone. |
-| `theme codex` | `tui.theme = "cc-hud"`, `tui.status_line_use_colors = true`; installs `assets/cc-hud.tmTheme` → `$CODEX_HOME/themes/cc-hud.tmTheme` | Backup `$CODEX_HOME/cc-hud-theme.json` `{ schema, theme, colors, asset }`, even when the settings already match; `asset` is the sha256 of the file installed, so a newer release replaces a file cc-hud wrote but refuses a user-edited one (the message names the path to delete). The legacy theme name `cc-hud-mocha` counts as ours. |
+| `theme codex` | `tui.theme = "cc-hud"`, `tui.status_line_use_colors = true`; installs `assets/cc-hud.tmTheme` → `$CODEX_HOME/themes/cc-hud.tmTheme` | Backup `$CODEX_HOME/cc-hud-theme.json` `{ schema, theme, colors, asset }`, even when the settings already match; `asset` is the sha256 of the file installed, so a newer release replaces a file cc-hud wrote but refuses a user-edited one (the message names the path to delete). The legacy theme name `cc-hud-mocha` counts as ours. Run again after upgrading to refresh an unedited installed theme file. Limits use a fixed neutral teal accent; the theme also changes syntax highlighting. |
 | `restore-theme codex` | writes the saved theme / colors back, deletes the backup, keeps the theme file | |
 
 Process model: one temporary `codex app-server --stdio` per command (cwd and
@@ -211,8 +211,13 @@ requests. Normal Codex sessions run with no cc-hud process, hook, MCP or `-c`
 flag.
 
 Semantics: Codex's limit percentages are *remaining*, the Claude HUD's are
-*used*; Codex controls separators and colors (no progress bar, no
-usage-threshold colors); during `/compact` it can briefly show 0% used.
+*used*. Codex maps 5h / weekly fields to its `Limit` theme accent
+(`constant.language`, fallback `storage.type`), independent of the numeric
+value; the user's original theme can make `93% left` red. The bundled theme
+splits `constant.numeric` (green) from the limit scopes (neutral teal). It does
+not add usage thresholds: `1% left` and `93% left` share the same color.
+Codex controls separators and colors, has no progress bar, and during
+`/compact` can briefly show 0% used.
 
 Tests: `tests/codex.test.ts` drives the CLI against
 `tests/fixtures/fake-codex.cjs`, a stand-in app-server with hang / race /
@@ -231,3 +236,4 @@ or model requests); it needs a local Codex ≥ 0.166.0.
 7. **`dist/` is committed** — run `npm test` (which builds) and commit `dist/` with the source change.
 8. **Secrets stay out of argv and logs** — curl gets its config on stdin; tokens are never written to the cache.
 9. **Codex config is written only by the explicit `codex` commands** — three `tui.*` keys through `config/batchWrite` with `expectedVersion`, never by editing TOML text, never from a statusline tick. Every write is re-read and verified; every "ours vs. user-edited" decision errs on the side of leaving the user's value alone.
+10. **A fixed quota color is not a health signal** — native Codex colors limits by theme scope, not remaining percentage. Keep the bundled limit accent neutral, describe the limitation in setup/check, and leave theme selection optional because it also changes syntax highlighting.

@@ -96,6 +96,6 @@ export async function codexTheme(restore) {
             unlinkSync(backupFile);
         say(restore
             ? 'Previous Codex theme settings restored. Restart Codex to load them.'
-            : 'CC-HUD theme saved. Select cc-hud in /theme, or restart Codex.');
+            : 'CC-HUD theme saved. Limit colors use fixed neutral teal, not quota thresholds. Select cc-hud in /theme, or restart Codex.');
     });
 }

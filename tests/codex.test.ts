@@ -25,7 +25,9 @@ describe('Codex native footer commands', () => {
   it('saves one field, is idempotent, checks it, and restores the previous value', () => {
     const f = fixture();
     try {
-      assert.equal(f.run('setup').status, 0);
+      const setup = f.run('setup');
+      assert.equal(setup.status, 0);
+      assert.match(setup.stdout, /Limit colors follow the active Codex theme, not remaining quota/);
       assert.deepEqual(f.data().local, CODEX_ITEMS);
       assert.equal(f.data().other, 'KEEP_PRIVATE');
       const originalBackup = readFileSync(f.backup, 'utf8');
@@ -33,7 +35,9 @@ describe('Codex native footer commands', () => {
       if (process.platform !== 'win32') assert.equal(statSync(f.backup).mode & 0o777, 0o600);
       assert.equal(f.run('setup').status, 0);
       assert.equal(readFileSync(f.backup, 'utf8'), originalBackup);
-      assert.equal(f.run('check').status, 0);
+      const check = f.run('check');
+      assert.equal(check.status, 0);
+      assert.match(check.stdout, /Limit colors follow the active Codex theme, not remaining quota/);
       const methods = readFileSync(join(f.home, 'methods.log'), 'utf8').trim().split('\n');
       assert.ok(methods.every(m => ['initialize', 'config/read', 'config/batchWrite'].includes(m)));
       assert.equal(methods.filter(m => m === 'config/batchWrite').length, 1);
@@ -180,7 +184,9 @@ describe('optional native theme', () => {
     const f = fixture();
     try {
       writeFileSync(f.file, JSON.stringify({ ...f.data(), theme: 'cc-hud', colors: true }));
-      assert.equal(f.run('theme').status, 0);
+      const theme = f.run('theme');
+      assert.equal(theme.status, 0);
+      assert.match(theme.stdout, /fixed neutral teal, not quota thresholds/);
       const target = join(f.home, 'themes', 'cc-hud.tmTheme');
       const original = readFileSync(target, 'utf8');
       // A separate package simulates the next release without editing this checkout.

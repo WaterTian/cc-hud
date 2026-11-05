@@ -27,6 +27,7 @@ interface Snapshot { layer: UserLayer; local: Items; effective: Items }
 const equal = (a: Items, b: Items) => JSON.stringify(a) === JSON.stringify(b);
 const isItems = (v: unknown): v is Items => v === null || (Array.isArray(v) && v.every(s => typeof s === 'string'));
 const say = (line: string): void => { process.stdout.write(line + '\n'); };
+const sayColorNote = (): void => say('Limit colors follow the active Codex theme, not remaining quota. Optional `theme codex` uses neutral teal and also changes syntax highlighting.');
 
 export const codexHome = () => resolve(process.env.CODEX_HOME || join(homedir(), '.codex'));
 
@@ -87,6 +88,7 @@ export async function codexCommand(action: CodexAction): Promise<void> {
       const configured = equal(before.local, CODEX_ITEMS) && equal(before.effective, CODEX_ITEMS);
       say(`${configured ? 'Configured' : 'Not configured'}: Codex native footer (${version})`);
       if (!configured) process.exitCode = 1;
+      else sayColorNote();
       return;
     }
 
@@ -103,7 +105,8 @@ export async function codexCommand(action: CodexAction): Promise<void> {
     if (equal(before.local, CODEX_ITEMS)) {
       if (!equal(before.effective, CODEX_ITEMS)) throw new Error('The saved footer is overridden by another Codex configuration layer.');
       if (backup && !equal(backup.applied, CODEX_ITEMS)) writeBackup(backupFile, { ...backup, applied: CODEX_ITEMS });
-      return say('Codex native footer already configured; nothing changed.');
+      say('Codex native footer already configured; nothing changed.');
+      return sayColorNote();
     }
     if (backup && !ours(before.local) && !equal(before.local, backup.previous)) {
       throw new Error('The footer was edited after setup; setup left it untouched.');
@@ -114,5 +117,6 @@ export async function codexCommand(action: CodexAction): Promise<void> {
     if (backup && !equal(backup.applied, CODEX_ITEMS)) writeBackup(backupFile, { ...backup, applied: CODEX_ITEMS });
     if (!equal(after.effective, CODEX_ITEMS)) throw new Error('Footer saved, but another Codex configuration layer overrides it.');
     say('Codex native footer configured. Restart Codex to load it.');
+    sayColorNote();
   });
 }
