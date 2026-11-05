@@ -14,13 +14,13 @@ cc-hud — 精简的 Claude Code 单行状态栏插件，显示模型名称、�
 | 运行时 | Node.js ≥ 18 |
 | 构建 | tsc（ESM, ES2022） |
 | 依赖 | 零外部依赖，仅 Node.js 内置模块 |
-| 测试 | node --test（内置测试运行器） |
+| 测试 | node:test（内置；`npm test` 经 scripts/test.cjs 显式枚举 ts/cjs） |
 | 配色 | Catppuccin Mocha（ANSI 256 色） |
 
 ## 项目结构
 
 ```
-.claude-plugin/plugin.json  — 插件清单
+.claude-plugin/plugin.json  — Claude Code 插件清单
 commands/setup.md           — 安装配置命令（v0.5.0+ 写 launcher 到 <cfg>/bin/；cfg = $CLAUDE_CONFIG_DIR 或 ~/.claude）
 src/
   index.ts                  — 入口：stdin → 解析 → 渲染 → stdout（全程只写一次 stdout，异常路径也输出最简行）
@@ -62,6 +62,8 @@ Claude Code → stdin JSON → cc-hud → stdout → 状态栏
            ↘ transcript JSONL（尾部 64KB → 活跃 agent + 思考深度 effort）
            ↘ git symbolic-ref / status（目录 · 分支*，800ms 预算）
            ↘ ~/.cache/cc-hud/claude-plan.json（只读；过期则 spawn detached refresh.js 后台拉取写回）
+
+Codex（仅显式命令，与 tick 无关）：cc-hud <action> codex → 临时 codex app-server --stdio → config/read → config/batchWrite → $CODEX_HOME/config.toml（只动 tui.status_line / tui.theme / tui.status_line_use_colors）
 ```
 
 ## 性能与稳定性
@@ -85,8 +87,6 @@ Claude Code → stdin JSON → cc-hud → stdout → 状态栏
 - 分发：根 `plugin.json`（Codex 插件清单）+ `skills/codex-setup/SKILL.md`（onboarding skill；Claude Code 也会把它当 skill 载入，描述里已注明 Claude 用 /cc-hud:setup）；复用现有 marketplace 仓库。`codex plugin marketplace add WaterTian/cc-hud` → `codex plugin add cc-hud@cc-hud`；`marketplace upgrade` 同步更新已装插件，新会话生效。
 - 视觉边界：Codex 额度显示**剩余**、Claude 显示**已用**；分隔符 / 配色由 Codex 控制，无进度条、不按百分比变色；`/compact` 期间可能短暂显示 0%。
 - 测试：`tests/codex.test.ts` 用 `tests/fixtures/fake-codex.cjs` 模拟 app-server（挂死 / 并发 / 写失败 / 版本开关）；`CC_HUD_CODEX_LIVE_TEST=1 npm test` 加测真实 Codex（隔离 CODEX_HOME、离线 provider），需本机 Codex ≥ 0.166.0。`npm test` 经 `scripts/test.cjs` 显式枚举 ts/cjs 测试并开 type stripping。
-
-本次复核交接（2026-11-05）：修复「主题配置已匹配时安装文件却未记录哈希，导致后续升级误判为用户修改」；回归测试在临时目录模拟新版主题包，验证升级与恢复。`CC_HUD_CODEX_LIVE_TEST=1 npm test` 246/246 通过，无跳过；dist 已同步。下次重点复核已匹配配置的文件归属、用户编辑保护和恢复原值。本批仅提交推送，不改版本、不打 tag、不发布 npm / Release。
 
 ## 发版流程
 

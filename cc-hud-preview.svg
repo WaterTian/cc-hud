@@ -37,12 +37,12 @@
     </circle>
 
     <rect x="800" y="33" width="60" height="18" rx="9" fill="none" stroke="#313244"/>
-    <text x="830" y="46" font-size="10.5" fill="#585b70" text-anchor="middle" letter-spacing="0.7">v0.10.0</text>
+    <text x="830" y="46" font-size="10.5" fill="#585b70" text-anchor="middle" letter-spacing="0.7">v0.11.0</text>
   </g>
 
   <!-- Subtitle + stable-launcher pill -->
   <g>
-    <text x="48" y="92" font-size="12" font-style="italic" fill="#585b70">CC-HUD v0.10.0 — <tspan fill="#cba6f7" font-weight="600" font-style="normal">workspace · spend cap</tspan> · depth · context · agents</text>
+    <text x="48" y="92" font-size="12" font-style="italic" fill="#585b70">CC-HUD v0.11.0 — <tspan fill="#cba6f7" font-weight="600" font-style="normal">workspace · spend cap</tspan> · depth · context · agents</text>
     <rect x="640" y="79" width="124" height="17" rx="4" fill="#b4befe" fill-opacity="0.08" stroke="#b4befe" stroke-width="1">
       <animate attributeName="stroke-opacity" values="0.25;0.6;0.25" dur="3s" repeatCount="indefinite"/>
     </rect>

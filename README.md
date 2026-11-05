@@ -1,5 +1,5 @@
 <!--
-  cc-hud — Claude Code statusline plugin
+  cc-hud — Claude Code statusline plugin + Codex CLI native footer preset
   Shows: model name, thinking depth (reasoning effort), context window usage (progress bar), active subagents, rate limits (5h/7d/spend cap) with reset countdown, top-model weekly gauge (Opus/Fable), workspace folder · branch, third-party balance/quota
   Pure Node.js, zero dependencies, crash-free on Windows (no Bun)
 
@@ -9,22 +9,23 @@
   Step 3: /reload-plugins
   Step 4: /cc-hud:setup  (idempotent; v0.5.0+ installs a launcher so future upgrades only need /plugin marketplace update cc-hud + /reload-plugins, no re-setup)
   Agent reference: AGENTS.md — verification command, runtime contract, every file / process / endpoint touched, env vars, debug recipes
+  Codex CLI: codex plugin marketplace add WaterTian/cc-hud → codex plugin add cc-hud@cc-hud → new session → run the cc-hud setup skill  (or: npm i -g cc-hud && cc-hud setup codex)
 
-  Keywords: claude-code plugin statusline status-bar hud monitoring context-window rate-limit reset-countdown agents windows crash-free zero-dependency catppuccin deepseek minimax glm thinking-depth reasoning-effort effort-level fable opus-limit top-model weekly-gauge
+  Keywords: claude-code codex codex-cli codex-plugin plugin statusline status-bar hud monitoring context-window rate-limit reset-countdown agents windows crash-free zero-dependency catppuccin deepseek minimax glm thinking-depth reasoning-effort effort-level fable opus-limit top-model weekly-gauge
 -->
 
 <p align="center">
   <picture>
-    <source srcset="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.svg?v=0.10.0" type="image/svg+xml" />
-    <img src="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.png?v=0.10.0" alt="cc-hud preview — model, thinking depth, context bar, agents, rate limits, top-model gauge, balance" width="900" />
+    <source srcset="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.svg?v=0.11.0" type="image/svg+xml" />
+    <img src="https://raw.githubusercontent.com/WaterTian/cc-hud/main/cc-hud-preview.png?v=0.11.0" alt="cc-hud preview — model, thinking depth, context bar, agents, rate limits, top-model gauge, balance" width="900" />
   </picture>
 </p>
 
 <h1 align="center">CC-HUD</h1>
 
 <p align="center">
-  <strong>A compact, single-line statusline plugin for <a href="https://claude.ai/claude-code">Claude Code</a></strong><br/>
-  <sub>Crash-free, zero-dependency status bar — model · thinking depth · context · agents · rate limits · top-model gauge</sub>
+  <strong>A compact, single-line statusline plugin for <a href="https://claude.ai/claude-code">Claude Code</a> — and a one-command native footer preset for <a href="https://github.com/openai/codex">Codex CLI</a></strong><br/>
+  <sub>Crash-free, zero-dependency status bar — model · thinking depth · context · agents · rate limits · top-model gauge · folder · branch</sub>
 </p>
 
 <p align="center">
@@ -233,7 +234,7 @@ Claude Code ──stdin JSON──→  ~/.claude/bin/cc-hud-launcher.cjs   ← s
                               │ resolves the currently installed cc-hud
                               ▼
                              cc-hud dist/index.js  ──stdout──→ status bar
-                              ↘ transcript JSONL (tail 64KB → active subagents)
+                              ↘ transcript JSONL (tail 64KB → active subagents + effort fallback)
                               ↘ git symbolic-ref / status (folder · branch*, 800ms budget)
                               ↘ refresh.js claude (detached → top-model weekly gauge, 5 min cache)
 ```
@@ -287,6 +288,8 @@ cc-hud shows your current **thinking depth** (the model's reasoning effort — `
 | `CC_HUD_NO_REFRESH=1` | Never spawn the background usage refresher (no network at all on the official backend). |
 | `CC_HUD_EXTRA_FILE=<path>` | Show the file's first line as an extra segment (see [Other backends](#other-backends)). |
 | `CC_HUD_CURL=<path>` | curl binary for proxied requests and the WAF fallback (default `curl`). |
+| `CC_HUD_CODEX=<path>` | Codex executable (or npm's `bin/codex.js`) for the `cc-hud … codex` commands when `codex` isn't on `PATH`. |
+| `CODEX_HOME` | Codex's config dir (default `~/.codex`): where `cc-hud … codex` reads `config.toml` and keeps its backups and theme file. |
 | `HTTPS_PROXY` / `https_proxy` / `ALL_PROXY` / `all_proxy` | When set, usage requests go through curl only (native `fetch` ignores proxies and is skipped). |
 | `ANTHROPIC_BASE_URL` | Read-only: decides the backend (official gauge vs DeepSeek / GLM / MiniMax detection by substring, see below). |
 | `ANTHROPIC_AUTH_TOKEN` | Read-only: the API key used to query a third-party backend's balance / quota endpoint. |
@@ -355,11 +358,11 @@ Project layout:
 | Path | Purpose |
 | --- | --- |
 | `src/` | TypeScript source — entry, render, model normalize, transcript (agents + effort fallback), git workspace, shared cache (detached + inline disciplines) + HTTP (native, curl / proxy), Claude gauge / DeepSeek / MiniMax / GLM collectors, detached refresher |
-| `src/cli.ts`, `src/codex.ts`, `src/codex-rpc.ts` | npm command dispatch and one-time Codex native configuration |
+| `src/cli.ts`, `src/codex*.ts`, `assets/cc-hud.tmTheme` | npm `cc-hud` bin (the Claude renderer with no args) and the one-time Codex footer / theme configuration |
 | `plugin.json`, `skills/codex-setup/` | Portable Codex plugin and setup skill; shares the existing marketplace repo |
 | `scripts/launcher.cjs` | Stable-path launcher (`/cc-hud:setup` copies it to `~/.claude/bin/`) |
 | `commands/setup.md` | `/cc-hud:setup` slash command |
-| `tests/` | `node:test` unit tests (TS + CJS) |
+| `tests/`, `scripts/test.cjs` | `node:test` unit + end-to-end tests and the runner behind `npm test`; `CC_HUD_CODEX_LIVE_TEST=1` adds a real Codex round-trip |
 | `dist/` | Compiled output, committed |
 | `AGENTS.md` | Agent-oriented reference — runtime contract, files / processes / endpoints touched, env vars, verify & debug recipes |
 

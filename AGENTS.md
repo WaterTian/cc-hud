@@ -1,11 +1,11 @@
 # cc-hud — agent reference
 
-Compact single-line status bar for Claude Code, plus a native Codex CLI footer
-preset. This file is the machine-oriented
-reference: exact commands with expected output, the runtime contract, every file,
-process and endpoint the tool touches, and the invariants to keep when changing
-it. The human tour is [README.md](README.md); maintainer notes (Chinese) are in
-[CLAUDE.md](CLAUDE.md). Keep the three in sync when behaviour changes.
+Compact single-line status bar for Claude Code, plus a one-command native footer
+preset for Codex CLI. This file is the machine-oriented reference: exact commands
+with expected output, the runtime contract, every file, process and endpoint the
+tool touches, and the invariants to keep when changing it. The human tour is
+[README.md](README.md); maintainer notes (Chinese) are in [CLAUDE.md](CLAUDE.md).
+Keep the three in sync when behaviour changes.
 
 ## What it renders
 
@@ -68,6 +68,9 @@ optionally `rm -rf ~/.cache/cc-hud`.
 and point `statusLine.command` at `node "<absolute path>/dist/index.js"`; `/cc-hud:setup`
 leaves such a command untouched.
 
+**Codex CLI** is a different install path and config file — see
+[Codex native footer](#codex-native-footer) below.
+
 ## Runtime contract
 
 The stdin contract below applies to `dist/index.js` (Claude) and to the npm
@@ -94,9 +97,11 @@ command output and nonzero exit codes on failure.
 | reads | `$CC_HUD_EXTRA_FILE` first line | every tick, when set |
 | writes | `~/.cache/cc-hud/claude-plan.json`, `ds-balance.json`, `glm-balance.json`, `mmx-quota.json` (`{ payload, ts, … }`, atomic tmp + rename) | on refresh / cache miss |
 | writes | `<cfg>/bin/cc-hud-launcher.cjs`, `statusLine` in `<cfg>/settings.json` | `/cc-hud:setup` only |
+| writes | `$CODEX_HOME/config.toml` — only `tui.status_line` (setup / restore) and `tui.theme` + `tui.status_line_use_colors` (theme / restore-theme), through Codex's config API; `$CODEX_HOME/cc-hud-native.json`, `cc-hud-theme.json`, `themes/cc-hud.tmTheme` | `cc-hud <action> codex` only — never during a statusline tick |
 | spawns | `git symbolic-ref`, `git --no-optional-locks status --porcelain` | every tick with a `current_dir` |
 | spawns | `node dist/refresh.js claude` (detached, 8 s budget) | official backend, gauge cache > 5 min old, at most once per 30 s |
 | spawns | `curl --config -` (token via stdin, never argv); `security find-generic-password` on macOS | refresher only |
+| spawns | `codex --version`, then one `codex app-server --stdio` (terminated when the command ends) | `cc-hud <action> codex` only |
 | network | `GET https://api.anthropic.com/api/oauth/usage` (Bearer OAuth) | refresher only — **never inside a tick** |
 | network | `GET api.deepseek.com/user/balance` · `open.bigmodel.cn` / `api.z.ai` `/api/biz/account/query-customer-account-report` · `api.minimaxi.com` / `api.minimax.io` `/v1/token_plan/remains` (Bearer `ANTHROPIC_AUTH_TOKEN`) | third-party backends, inline on a cache miss (≤ once per 5 min) |
 
@@ -114,6 +119,9 @@ collectors have no switch; they only run when `ANTHROPIC_BASE_URL` matches their
 | `HTTPS_PROXY` / `https_proxy` / `ALL_PROXY` / `all_proxy` | Refresher goes through curl only (native `fetch` ignores proxies, so it is skipped rather than leak the token) |
 | `ANTHROPIC_BASE_URL` | Read-only: selects the backend by substring — `api.anthropic.com` / unset → official; `deepseek`; `bigmodel.cn` / `api.z.ai`; `minimax` (`minimaxi.com` → CN endpoint) |
 | `ANTHROPIC_AUTH_TOKEN` | Read-only: bearer for the third-party balance / quota endpoints |
+| `CODEX_HOME` | Codex's config dir (default `~/.codex`) for the `cc-hud … codex` commands: `config.toml`, backups, theme file |
+| `CC_HUD_CODEX=<path>` | Codex executable for those commands (or npm's `bin/codex.js`) when `codex` isn't on `PATH` |
+| `CC_HUD_CODEX_LIVE_TEST=1` | Test-only: `npm test` also runs a real Codex config round-trip in an isolated `CODEX_HOME` |
 
 Boolean switches: `""`, `0`, `false` mean off; anything else means on (`src/env.ts`).
 
@@ -122,12 +130,6 @@ Boolean switches: `""`, `0`, `false` mean off; anything else means on (`src/env.
 | Path | Role |
 | --- | --- |
 | `src/index.ts` | Entry: stdin → collectors in parallel → `render()` → single stdout write; fallback line on any error |
-| `src/cli.ts` | npm `cc-hud` bin: no args → Claude renderer (help on a TTY); `<action> codex` → Codex commands; `--help` / `--version` |
-| `src/codex-rpc.ts` | One temporary `codex app-server --stdio`: version gate, JSON-RPC, `readUserLayer` / `writeUserLayer`, 10 s deadline, kill on exit |
-| `src/codex.ts` | `setup` / `check` / `restore` of `tui.status_line`, single-field backup `cc-hud-native.json` |
-| `src/codex-theme.ts`, `assets/cc-hud.tmTheme` | Optional theme: `tui.theme` + `tui.status_line_use_colors`, theme file install with hash-tracked refresh, separate backup / restore |
-| `plugin.json`, `skills/codex-setup/` | Codex plugin manifest and onboarding skill (Claude Code also loads the skill; its description defers to `/cc-hud:setup`); the existing marketplace repo serves both |
-| `scripts/test.cjs` | `npm test` runner: enumerates `tests/*.test.{ts,cjs}` explicitly and enables type stripping |
 | `src/stdin.ts` | stdin JSON → `StdinData` (`{}` unless a plain object) |
 | `src/types.ts` | `StdinData` (fields read), `RenderData` (what the renderer needs) |
 | `src/render.ts` | Pure renderer: `RenderData` → one coloured line; strips control chars from free text |
@@ -140,18 +142,25 @@ Boolean switches: `""`, `0`, `false` mean off; anything else means on (`src/env.
 | `src/http.ts` | `fetchJson` (refresher: proxy → curl only, else fetch then curl on transport failure / 403) and `fetchJsonNative` (collectors, 1.2 s) |
 | `src/balance.ts` / `glm.ts` / `mmx.ts` | DeepSeek / GLM / MiniMax: backend detection + response parsing on top of `cachedInline` |
 | `src/env.ts` | `envFlag()` boolean switch parsing |
+| `src/cli.ts` | npm `cc-hud` bin: no args → Claude renderer (help on a TTY); `<action> codex` → Codex commands; `--help` / `--version` |
+| `src/codex-rpc.ts` | One temporary `codex app-server --stdio`: version gate, JSON-RPC, `readUserLayer` / `writeUserLayer`, 10 s deadline, kill on exit |
+| `src/codex.ts` | `setup` / `check` / `restore` of `tui.status_line`, single-field backup `cc-hud-native.json` |
+| `src/codex-theme.ts`, `assets/cc-hud.tmTheme` | Optional theme: `tui.theme` + `tui.status_line_use_colors`, theme file install with hash-tracked refresh, separate backup / restore |
 | `scripts/launcher.cjs` | Stable-path launcher copied by setup; resolves the newest installed cc-hud each tick |
+| `scripts/test.cjs` | `npm test` runner: enumerates `tests/*.test.{ts,cjs}` explicitly and enables type stripping |
 | `commands/setup.md` | The `/cc-hud:setup` procedure (executed by Claude) |
-| `.claude-plugin/plugin.json`, `marketplace.json` | Plugin + marketplace manifests (version bumped together with `package.json`) |
+| `.claude-plugin/plugin.json`, `marketplace.json` | Claude Code plugin + marketplace manifests (version bumped together with `package.json` and the root `plugin.json`) |
+| `plugin.json`, `skills/codex-setup/` | Codex plugin manifest and onboarding skill (Claude Code also loads the skill; its description defers to `/cc-hud:setup`); the existing marketplace repo serves both |
 | `dist/` | Compiled output — **committed**; CI fails if it drifts from `src/` |
 | `tests/` | `node:test` unit + end-to-end tests (`tests/index.test.ts` runs the real `dist/index.js`) |
-| `.github/workflows/ci.yml` | ubuntu / windows / macos × Node 22 / 24 suite, dist-sync check, Node 18 / 20 runtime smoke |
+| `.github/workflows/ci.yml` | ubuntu / windows / macos × Node 22 / 24 suite, dist-sync check, Node 18 / 20 runtime smoke (both entries + `--help`) |
+| `preview.html`, `cc-hud-preview.{svg,png}` | README hero image source and renders; bump the `?v=` cache param in README when they change |
 
 ## Development
 
 ```bash
 npm install
-npm test             # tsc build + node --test (the .ts tests need Node ≥ 22.6; dist/ itself runs on ≥ 18)
+npm test             # tsc build + node:test via scripts/test.cjs (the .ts tests need Node ≥ 22.6; dist/ itself runs on ≥ 18)
 npm run test:stdin   # build + render one sample line
 ```
 
@@ -221,3 +230,4 @@ or model requests); it needs a local Codex ≥ 0.166.0.
 6. **Zero dependencies, Node ≥ 18 at runtime** — Node built-ins only; no Node 22-only APIs in `src/`.
 7. **`dist/` is committed** — run `npm test` (which builds) and commit `dist/` with the source change.
 8. **Secrets stay out of argv and logs** — curl gets its config on stdin; tokens are never written to the cache.
+9. **Codex config is written only by the explicit `codex` commands** — three `tui.*` keys through `config/batchWrite` with `expectedVersion`, never by editing TOML text, never from a statusline tick. Every write is re-read and verified; every "ours vs. user-edited" decision errs on the side of leaving the user's value alone.

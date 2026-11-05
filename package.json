@@ -1,6 +1,6 @@
 {
   "name": "cc-hud",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "Compact Claude Code statusline HUD and native Codex CLI footer preset — model, effort, context, agents, limits, workspace and balances",
   "author": "WaterTian",
   "license": "MIT",
