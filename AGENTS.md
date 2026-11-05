@@ -122,10 +122,12 @@ Boolean switches: `""`, `0`, `false` mean off; anything else means on (`src/env.
 | Path | Role |
 | --- | --- |
 | `src/index.ts` | Entry: stdin → collectors in parallel → `render()` → single stdout write; fallback line on any error |
-| `src/cli.ts` | npm entry; no args imports the Claude entry, explicit setup/check/restore dispatches to Codex configuration |
-| `src/codex.ts`, `src/codex-rpc.ts` | One-time native Codex footer setup/check/restore through its config API; no model or account calls |
-| `src/codex-theme.ts`, `assets/cc-hud.tmTheme` | Optional native palette, one-time theme configuration and separate restore |
-| `plugin.json`, `skills/codex-setup/` | Portable Codex plugin manifest and onboarding skill; existing `.claude-plugin/marketplace.json` is compatible with Codex |
+| `src/cli.ts` | npm `cc-hud` bin: no args → Claude renderer (help on a TTY); `<action> codex` → Codex commands; `--help` / `--version` |
+| `src/codex-rpc.ts` | One temporary `codex app-server --stdio`: version gate, JSON-RPC, `readUserLayer` / `writeUserLayer`, 10 s deadline, kill on exit |
+| `src/codex.ts` | `setup` / `check` / `restore` of `tui.status_line`, single-field backup `cc-hud-native.json` |
+| `src/codex-theme.ts`, `assets/cc-hud.tmTheme` | Optional theme: `tui.theme` + `tui.status_line_use_colors`, theme file install with hash-tracked refresh, separate backup / restore |
+| `plugin.json`, `skills/codex-setup/` | Codex plugin manifest and onboarding skill (Claude Code also loads the skill; its description defers to `/cc-hud:setup`); the existing marketplace repo serves both |
+| `scripts/test.cjs` | `npm test` runner: enumerates `tests/*.test.{ts,cjs}` explicitly and enables type stripping |
 | `src/stdin.ts` | stdin JSON → `StdinData` (`{}` unless a plain object) |
 | `src/types.ts` | `StdinData` (fields read), `RenderData` (what the renderer needs) |
 | `src/render.ts` | Pure renderer: `RenderData` → one coloured line; strips control chars from free text |
@@ -169,43 +171,43 @@ tag `vX.Y.Z`; push branch + tag; `gh release create`; `npm publish` (package `cc
 
 ## Codex native footer
 
-Requires Codex CLI >=0.166.0. Install with `codex plugin marketplace add
-WaterTian/cc-hud`, then `codex plugin add cc-hud@cc-hud`; start a new session
-and run the plugin setup skill. Git marketplace update: `codex plugin
-marketplace upgrade cc-hud`; installed plugin files refresh too.
+Requires Codex CLI ≥ 0.166.0 (checked with `codex --version`; `CC_HUD_CODEX`
+overrides the executable, npm's `bin/codex.js` is accepted). Install:
+`codex plugin marketplace add WaterTian/cc-hud` → `codex plugin add cc-hud@cc-hud`
+→ new session → run the plugin's setup skill. Update: `codex plugin marketplace
+upgrade cc-hud` (installed plugin files refresh too).
 
-The packaged command is `node dist/cli.js setup codex` (`check` / `restore`
-are the other actions); npm users can use `cc-hud` directly. Only
-`tui.status_line` is edited, using `config/read` and atomic
-`config/batchWrite` with `expectedVersion`. JSON null removes an originally
-absent key. The previous field and applied preset are stored with mode 600 in
-`$CODEX_HOME/cc-hud-native.json`, never a copy of the full config. Later user
-edits are not overwritten by repeat setup or restore.
+Commands — `node dist/cli.js <action> codex` from the plugin dir or a checkout,
+or the npm `cc-hud` bin: `setup`, `check` (exit 0 = active), `restore`, `theme`,
+`restore-theme`; also `--help` / `--version`. Errors go to stderr with exit 1
+and nothing is changed on any error path. With no arguments the bin is the
+Claude renderer when stdin is a pipe and prints help on a TTY.
 
-`CC_HUD_CODEX` overrides the executable (also accepts npm `bin/codex.js`).
-One temporary stdio app-server process is used per command, under a 10s
-request deadline. It receives no thread, model, account, or usage requests;
-stderr and private config values aren't logged. It is terminated on exit.
-Normal Codex sessions use their own native data and rendering, without a
-cc-hud process, hooks, MCP, or `-c` flags. The preset preserves the theme:
-`model-with-reasoning`, `context-used`, `five-hour-limit`, `weekly-limit`,
-`project-name`, `git-branch`. Codex's quota figures mean remaining usage;
-Claude's mean used usage. Exact glyph/color/layout parity is not supported.
+| Command | Reads / writes | Behaviour |
+| --- | --- | --- |
+| `setup codex` | `tui.status_line` in the user `config.toml`: `config/read` → `config/batchWrite` (`expectedVersion` guard) → re-read | Preset `model-with-reasoning`, `context-used`, `five-hour-limit`, `weekly-limit`, `project-name`, `git-branch`. Idempotent. Writes `$CODEX_HOME/cc-hud-native.json` `{ schema, previous, applied }` (mode 600) only when it first takes the field over; refreshes `applied` when a release changed the preset. A footer edited since, or overridden by another config layer, is reported — never overwritten. |
+| `check codex` | read only | "Configured" iff both the user layer and the effective config equal the preset. No Codex spawn when `$CODEX_HOME` does not exist. |
+| `restore codex` | writes `previous` back (JSON null removes a key that was absent), deletes the backup | Treats the current preset or the one previously applied as "ours"; anything else is a user edit and is left alone. |
+| `theme codex` | `tui.theme = "cc-hud"`, `tui.status_line_use_colors = true`; installs `assets/cc-hud.tmTheme` → `$CODEX_HOME/themes/cc-hud.tmTheme` | Backup `$CODEX_HOME/cc-hud-theme.json` `{ schema, theme, colors, asset }`; `asset` is the sha256 of the file installed, so a newer release replaces a file cc-hud wrote but refuses a user-edited one (the message names the path to delete). The legacy theme name `cc-hud-mocha` counts as ours. |
+| `restore-theme codex` | writes the saved theme / colors back, deletes the backup, keeps the theme file | |
 
-Optional palette: `cc-hud theme codex` installs the 2.5 KB
-`assets/cc-hud.tmTheme` into `$CODEX_HOME/themes/` and sets `tui.theme`
-and `tui.status_line_use_colors`. The previous preferences are saved to
-`$CODEX_HOME/cc-hud-theme.json` (mode 600); `restore-theme codex` restores them
-and retains the reusable theme file. Later user edits and edited assets are
-not overwritten. Select `cc-hud` in `/theme` to apply to a running TUI.
-This native theme affects code highlighting too. Footer colors identify
-fields, without Claude's dynamic percentage thresholds. Plain footer setup
-does not opt into a theme change.
+Process model: one temporary `codex app-server --stdio` per command (cwd and
+`CODEX_HOME` = the config dir), JSON-RPC over stdio: `initialize` → requests →
+SIGTERM, SIGKILL after 500 ms; 10 s overall deadline. Server notifications and
+server-initiated requests are ignored; server error bodies are never printed
+(they can carry private config values). No thread, model, account or usage
+requests. Normal Codex sessions run with no cc-hud process, hook, MCP or `-c`
+flag.
 
-`CC_HUD_CODEX_LIVE_TEST=1 npm test` opts into a real Codex config round-trip
-with an isolated config and an offline provider; no auth/model requests.
-`scripts/test.cjs` enumerates TS and CJS tests explicitly, including on
-Windows, and enables type stripping on Node 22.6+.
+Semantics: Codex's limit percentages are *remaining*, the Claude HUD's are
+*used*; Codex controls separators and colors (no progress bar, no
+usage-threshold colors); during `/compact` it can briefly show 0% used.
+
+Tests: `tests/codex.test.ts` drives the CLI against
+`tests/fixtures/fake-codex.cjs`, a stand-in app-server with hang / race /
+write-error / version switches. `CC_HUD_CODEX_LIVE_TEST=1 npm test` adds a real
+round-trip against an isolated `CODEX_HOME` with an offline provider (no auth
+or model requests); it needs a local Codex ≥ 0.166.0.
 
 ## Invariants — keep these when changing code
 

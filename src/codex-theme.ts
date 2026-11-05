@@ -1,69 +1,100 @@
-// Optional native theme. This also colors Codex's syntax highlighting; it is
-// separate from footer setup so existing themes are never changed implicitly.
+// Optional native theme. It also colors Codex's syntax highlighting, so it is
+// separate from footer setup: an existing theme is never changed implicitly.
+//
+// Touches `tui.theme` + `tui.status_line_use_colors` in the user layer and
+// installs assets/cc-hud.tmTheme as $CODEX_HOME/themes/cc-hud.tmTheme. The
+// previous two values — and the hash of the theme file we installed, so a
+// later release can refresh it — live in $CODEX_HOME/cc-hud-theme.json. A
+// user edit of either the settings or the file is detected and left alone.
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
-import { withCodex } from './codex-rpc.js';
+import { join } from 'node:path';
+import { codexHome } from './codex.js';
+import { readUserLayer, withCodex, writeUserLayer } from './codex-rpc.js';
 
 const THEME = 'cc-hud';
+const OWNED_THEMES = [THEME, 'cc-hud-mocha']; // names earlier releases applied
 interface Appearance { theme: string | null; colors: boolean | null }
-const same = (a: Appearance, b: Appearance) => a.theme === b.theme && a.colors === b.colors;
+interface Backup extends Appearance { schema: 1; asset?: string }
+
 const applied: Appearance = { theme: THEME, colors: true };
+const same = (a: Appearance, b: Appearance) => a.theme === b.theme && a.colors === b.colors;
+const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
+const say = (line: string): void => { process.stdout.write(line + '\n'); };
+const appearance = (tui: Record<string, unknown>): Appearance => ({
+  theme: typeof tui.theme === 'string' ? tui.theme : null,
+  colors: typeof tui.status_line_use_colors === 'boolean' ? tui.status_line_use_colors : null,
+});
+
+function readBackup(file: string): Backup | null {
+  if (!existsSync(file)) return null;
+  try {
+    const b = JSON.parse(readFileSync(file, 'utf8')) as Backup;
+    const ok = b.schema === 1
+      && (b.theme === null || typeof b.theme === 'string')
+      && (b.colors === null || typeof b.colors === 'boolean')
+      && (b.asset === undefined || typeof b.asset === 'string');
+    if (!ok) throw new Error();
+    return b;
+  } catch { throw new Error('Invalid Codex theme backup; settings were left untouched.'); }
+}
+
+const writeBackup = (file: string, backup: Backup, exclusive = false) =>
+  writeFileSync(file, JSON.stringify(backup) + '\n', { mode: 0o600, ...(exclusive ? { flag: 'wx' } : {}) });
+
+// Install (or refresh) the theme file. A differing file is overwritten only
+// when its hash is the one we recorded at install — anything else is a user
+// edit. Returns the hash of the shipped asset.
+function installAsset(home: string, previous: Backup | null): string {
+  const asset = readFileSync(new URL('../assets/cc-hud.tmTheme', import.meta.url), 'utf8');
+  const target = join(home, 'themes', `${THEME}.tmTheme`);
+  const existing = existsSync(target) ? readFileSync(target, 'utf8') : null;
+  if (existing !== null && existing !== asset && sha256(existing) !== previous?.asset) {
+    throw new Error(`The cc-hud theme file was edited; it was left untouched (delete ${target} to reinstall it).`);
+  }
+  if (existing !== asset) {
+    mkdirSync(join(home, 'themes'), { recursive: true });
+    writeFileSync(target, asset);
+  }
+  return sha256(asset);
+}
 
 export async function codexTheme(restore: boolean): Promise<void> {
-  const home = resolve(process.env.CODEX_HOME || join(homedir(), '.codex'));
+  const home = codexHome();
   const backupFile = join(home, 'cc-hud-theme.json');
-  let previous: Appearance | null = null;
-  if (existsSync(backupFile)) {
-    try {
-      const b = JSON.parse(readFileSync(backupFile, 'utf8'));
-      if (b.schema !== 1 || !(b.theme === null || typeof b.theme === 'string') || !(b.colors === null || typeof b.colors === 'boolean')) throw new Error();
-      previous = { theme: b.theme, colors: b.colors };
-    } catch { throw new Error('Invalid Codex theme backup; settings were left untouched.'); }
-  }
-  if (restore && !previous) {
-    process.stdout.write('No cc-hud theme backup; nothing changed.\n');
-    return;
-  }
+  const previous = readBackup(backupFile);
+  if (restore && !previous) return say('No cc-hud theme backup; nothing changed.');
   if (!restore) mkdirSync(home, { recursive: true, mode: 0o700 });
+
   await withCodex(home, async request => {
-    const result = await request('config/read', { includeLayers: true }) as {
-      layers: { name: { type: string; file: string; profile?: string }; version: string; config: { tui?: { theme?: string; status_line_use_colors?: boolean } } }[];
-    };
-    const user = result.layers?.find(l => l.name.type === 'user' && !l.name.profile);
-    if (!user) throw new Error('Codex did not return a supported user configuration layer.');
-    const current: Appearance = { theme: user.config.tui?.theme ?? null, colors: user.config.tui?.status_line_use_colors ?? null };
-    const owned = current.colors === true && [THEME, 'cc-hud-mocha'].includes(current.theme ?? '');
+    const layer = await readUserLayer(request);
+    const current = appearance(layer.tui);
+    const owned = current.colors === true && OWNED_THEMES.includes(current.theme ?? '');
     if (previous && !owned && !same(current, previous)) throw new Error('Theme settings were edited after setup; they were left untouched.');
+
     if (!restore) {
-      const asset = readFileSync(new URL('../assets/cc-hud.tmTheme', import.meta.url), 'utf8');
-      const target = join(home, 'themes', `${THEME}.tmTheme`);
-      if (existsSync(target) && readFileSync(target, 'utf8') !== asset) throw new Error('The cc-hud theme file was edited; it was left untouched.');
-      if (!previous && !same(current, applied)) writeFileSync(backupFile, JSON.stringify({ schema: 1, ...current }) + '\n', { flag: 'wx', mode: 0o600 });
-      mkdirSync(join(home, 'themes'), { recursive: true });
-      if (!existsSync(target)) writeFileSync(target, asset, { flag: 'wx' });
+      const hash = installAsset(home, previous);
+      if (!previous) {
+        // Nothing to restore when the settings already match — no backup then.
+        if (!same(current, applied)) writeBackup(backupFile, { schema: 1, ...current, asset: hash }, true);
+      } else if (previous.asset !== hash) {
+        writeBackup(backupFile, { ...previous, asset: hash });
+      }
     }
+
     const desired = restore ? previous! : applied;
-    if (!same(current, desired)) await request('config/batchWrite', {
-      filePath: user.name.file, expectedVersion: user.version,
-      edits: [
-        { keyPath: 'tui.theme', value: desired.theme, mergeStrategy: 'replace' },
-        { keyPath: 'tui.status_line_use_colors', value: desired.colors, mergeStrategy: 'replace' },
-      ],
-    });
-    const saved = await request('config/read', { includeLayers: true }) as typeof result & {
-      config?: { tui?: { theme?: string; status_line_use_colors?: boolean } };
-    };
-    const local = saved.layers?.find(l => l.name.type === 'user' && !l.name.profile)?.config.tui;
-    if (!same({ theme: local?.theme ?? null, colors: local?.status_line_use_colors ?? null }, desired)) {
-      throw new Error('Codex did not retain the requested theme; the backup is preserved.');
+    if (!same(current, desired)) {
+      await writeUserLayer(request, layer, [
+        { keyPath: 'tui.theme', value: desired.theme },
+        { keyPath: 'tui.status_line_use_colors', value: desired.colors },
+      ]);
     }
-    if (!restore && (saved.config?.tui?.theme !== THEME || saved.config.tui.status_line_use_colors !== true)) {
-      throw new Error('Theme saved, but another Codex configuration layer overrides it.');
-    }
+    const saved = await readUserLayer(request);
+    if (!same(appearance(saved.tui), desired)) throw new Error('Codex did not retain the requested theme; the backup is preserved.');
+    if (!restore && !same(appearance(saved.effectiveTui), applied)) throw new Error('Theme saved, but another Codex configuration layer overrides it.');
     if (restore) unlinkSync(backupFile);
-    process.stdout.write(restore
-      ? 'Previous Codex theme settings restored. Restart Codex to load them.\n'
-      : 'CC-HUD theme saved. Select cc-hud in /theme, or restart Codex.\n');
+    say(restore
+      ? 'Previous Codex theme settings restored. Restart Codex to load them.'
+      : 'CC-HUD theme saved. Select cc-hud in /theme, or restart Codex.');
   });
 }

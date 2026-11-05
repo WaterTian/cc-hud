@@ -2,7 +2,7 @@
 
 ## 项目概述
 
-cc-hud — 精简的 Claude Code 单行状态栏插件，显示模型名称、思考深度（effort）、上下文用量、活跃子代理、速率限制（5h / 7d / spend cap）、顶级模型周用量、工作区（目录 · 分支）。
+cc-hud — 精简的 Claude Code 单行状态栏插件，显示模型名称、思考深度（effort）、上下文用量、活跃子代理、速率限制（5h / 7d / spend cap）、顶级模型周用量、工作区（目录 · 分支）。另提供 Codex CLI 原生 footer 的一次性预设（见下文「Codex CLI 原生 footer 预设」）。
 
 面向 AI agent 的英文参考在 `AGENTS.md`（运行契约、读写的文件 / 进程 / 网络端点、环境变量、验证与调试步骤、改代码要守的不变量）。改动行为或接口时，README / AGENTS.md / 本文件一起更新。
 
@@ -36,9 +36,17 @@ src/
   env.ts                    — 布尔环境变量开关（"" / "0" / "false" 视为关）
   balance.ts / glm.ts / mmx.ts  — DeepSeek / GLM / MiniMax 余额或配额采集：只剩后端判定 + 响应解析，缓存与拉取走 cache.cachedInline + http.fetchJsonNative（未命中时 tick 内拉取，1.2s 预算，失败退回旧值）
   types.ts                  — 类型定义
+  cli.ts                    — npm bin 入口：无参数走 index.ts（TTY 上打印帮助）；`<action> codex` 分发到 Codex 命令；--help / --version
+  codex-rpc.ts              — 临时 `codex app-server --stdio`：版本门槛、JSON-RPC、readUserLayer / writeUserLayer、10s 超时、退出即杀
+  codex.ts                  — Codex footer setup / check / restore（只改 tui.status_line，单字段备份 cc-hud-native.json）
+  codex-theme.ts            — 可选主题：tui.theme + status_line_use_colors，主题文件按 sha256 跟踪刷新，独立备份 / 恢复
 scripts/launcher.cjs        — 稳定路径 launcher（setup 复制到 <cfg>/bin/cc-hud-launcher.cjs；找不到插件时打印一行提示而非空白）
+scripts/test.cjs            — npm test 运行器：显式枚举 tests/*.test.{ts,cjs} 并开 type stripping
+plugin.json                 — Codex 插件清单（根目录；版本号与另外三处一起 bump）
+skills/codex-setup/SKILL.md — Codex onboarding skill（跑 dist/cli.js … codex）
+assets/cc-hud.tmTheme       — 可选 Codex 主题文件
 dist/                       — 编译输出（提交到仓库，CI 校验与 src 同步）
-tests/*.test.ts(.cjs)       — node:test 单元 + 端到端测试（render / model / transcript / git / http / cache / env / claude / balance / glm / mmx / launcher / index）
+tests/*.test.ts(.cjs)       — node:test 单元 + 端到端测试（render / model / transcript / git / http / cache / env / claude / balance / glm / mmx / launcher / index / codex；codex-live 需 CC_HUD_CODEX_LIVE_TEST=1；fixtures/fake-codex.cjs 模拟 app-server）
 .claude-plugin/marketplace.json — marketplace 入口（`/plugin marketplace add WaterTian/cc-hud` 读它；发版时和 plugin.json 一起 bump）
 .github/workflows/ci.yml    — CI：ubuntu / windows / macos × node 22 / 24 测试矩阵 + dist 同步检查 + node 18 / 20 运行时 smoke
 AGENTS.md                   — 面向 AI agent 的英文参考（运行契约 / 文件与网络 / 环境变量 / 验证与调试 / 不变量），与本文件同步维护
@@ -66,26 +74,16 @@ Claude Code → stdin JSON → cc-hud → stdout → 状态栏
 - **所有 IO try-catch** — 失败静默降级，不崩溃
 - **tick 内零网络（官方后端）** — claude.ts 只读缓存，网络请求全部由 detached 刷新子进程完成；OAuth usage 接口的 WAF 会 403 拦截 Node TLS 指纹，需 curl 回退（2026-07 实测）
 
-## Codex CLI 原生预设
+## Codex CLI 原生 footer 预设
 
-### 本次交接（2026-11-05）
-
-- 用户要求：官方 Codex CLI、原生、轻量、高效精简；接受与 Claude HUD 近似样式。用户侧主题统一叫 **cc-hud**，不带 Mocha 后缀；不引入 fork、tmux、常驻服务或额外额度请求。
-- 本批只提交、推送供另一个 Claude 对话审查，**不打 tag、不建 Release、不发布 npm**；版本号暂留 `0.10.0`。npm 的 `0.10.0` 已在本会话较早阶段发布，不能重复发布。
-- 最新验证：`CC_HUD_CODEX_LIVE_TEST=1 npm test` **243/243 通过**；原生 TUI 已实测主题选择、颜色、真实对话刷新、压缩、新建/恢复会话；配置 API 的隔离读写/恢复通过。Git diff 无空白错误。跨平台 CI 尚待推送后验证。
-- 当前老 Mac 默认 CLI 已从 app 内置 `0.166.0-alpha.6` 切到 npm 稳定版 `0.166.0`；app 内置旧版保留。共享 daemon 仍为 `0.166.0-alpha.5.1`，未重启，避免中断其他工作。
-- 本地插件已从此仓库安装并启用，缓存 `~/.codex/plugins/cache/cc-hud/cc-hud/0.10.0/`；当前原生主题配置为 `cc-hud`。原设置分别保存在 `~/.codex/cc-hud-native.json`、`~/.codex/cc-hud-theme.json`，仅含所管字段。
-- 视觉边界：原生分隔符、文字格式、百分比含义不能完全复刻 Claude；Codex 额度显示剩余，Claude 显示已用。原生颜色区分字段，不按百分比动态变色；`/compact` 期间可能短暂显示 0% 已用。
-- 后续审查优先核对：配置幂等与恢复、并发编辑保护、主题旧名迁移、Node ≥18 / Windows 路径、插件安装/更新和产物打包。不要将测试终端截图或浏览器预览当成用户当前窗口已重绘的证据。
-
-- 保留官方 CLI，采用近似样式：模型/深度 → 上下文已用 → 主/次额度剩余 → 项目 → 分支。
-- Codex 原生负责数据、配色、显示和刷新。无额外常驻进程、hook、MCP、会话扫描或额度 API；不承诺 Claude 版的进度条或完全相同样式。
-- root `plugin.json` + `skills/codex-setup/SKILL.md` 提供 Codex 插件和设置 skill，复用现有 marketplace。安装用 `codex plugin marketplace add WaterTian/cc-hud`、`codex plugin add cc-hud@cc-hud`；marketplace `upgrade` 会同步更新已装插件，新会话加载。
-- npm bin 改为 `dist/cli.js`，无参数仍调用 Claude `dist/index.js`；Claude launcher 保持不变。命令为 `cc-hud setup codex` / `check codex` / `restore codex`。
-- 可选 `theme codex` 安装 2.5KB 原生 `cc-hud.tmTheme`，模型蓝、项目青、分支/上下文/额度绿，也统一代码高亮。当前窗口用 `/theme` 搜索并选择 `cc-hud`；`restore-theme codex` 恢复先前主题配置。主题独立备份到 `cc-hud-theme.json`，默认 setup 不改主题。原生字段配色不随百分比动态变色。
-- 仅通过 Codex config API 修改 `tui.status_line`，保留其他设置；单字段备份位于 `$CODEX_HOME/cc-hud-native.json`。幂等设置、并发版本检查、恢复时保护后续用户修改。
-- 设置命令临时启动 stdio app-server，结束即退出；不使用 `-c` 包装正常 Codex 启动（会绕过共享 daemon）。要求 Codex ≥0.166.0，`CC_HUD_CODEX` 可指定可执行文件或 npm `codex.js`。
-- `npm test` 通过 `scripts/test.cjs` 显式枚举 TS/CJS，防止 Node 22 漏跑 TS。`CC_HUD_CODEX_LIVE_TEST=1 npm test` 加测隔离配置的真实 Codex 读写。
+- 定位：一次性把 Codex **自己的** footer 配成近似 Claude HUD 的信息集（模型/深度 → 上下文已用 → 5h/周额度剩余 → 项目 → 分支），之后由 Codex 原生负责数据、刷新、配色。没有常驻进程、hook、MCP、transcript 扫描或额外额度请求；不用 `-c` 包装正常启动（会绕过 Codex 的共享 daemon）。
+- 入口：npm bin 指向 `dist/cli.js`。无参数 + stdin 管道 = 原来的 Claude 渲染器；无参数 + TTY 打印帮助。`cc-hud setup|check|restore|theme|restore-theme codex`、`--help`、`--version`。Claude 的 launcher 直接跑 `dist/index.js`，不经过 cli，零影响。
+- 配置通道（`codex-rpc.ts`）：临时起 `codex app-server --stdio`，`config/read` → `config/batchWrite`（`expectedVersion` 防并发）→ 回读校验；10s 总超时，SIGTERM 后 500ms SIGKILL；忽略服务端通知和服务端发起的请求；error body 不回显（可能含私密配置）。要求 Codex ≥ 0.166.0，找不到 / 版本过低分别报错；`CC_HUD_CODEX` 指定可执行文件或 npm `bin/codex.js`。
+- footer（`codex.ts`）：只改 `tui.status_line`；单字段备份 `$CODEX_HOME/cc-hud-native.json`（`{schema, previous, applied}`，0600）。幂等；用户事后改过 → setup / restore 都只报告不覆盖；"我们的"= 当前预设或上次 applied 的预设，所以发版换预设后 restore 仍能还原（setup 会把 `applied` 刷新为新预设）。
+- 主题（`codex-theme.ts`，可选）：装 `assets/cc-hud.tmTheme` 到 `$CODEX_HOME/themes/cc-hud.tmTheme`，设 `tui.theme` + `tui.status_line_use_colors`，备份 `cc-hud-theme.json`（含安装文件 sha256 `asset`：新版本只覆盖自己装的文件，用户改过的拒绝并提示删除路径）。旧名 `cc-hud-mocha` 视为自己的。主题会连带改代码高亮，所以独立于 setup。
+- 分发：根 `plugin.json`（Codex 插件清单）+ `skills/codex-setup/SKILL.md`（onboarding skill；Claude Code 也会把它当 skill 载入，描述里已注明 Claude 用 /cc-hud:setup）；复用现有 marketplace 仓库。`codex plugin marketplace add WaterTian/cc-hud` → `codex plugin add cc-hud@cc-hud`；`marketplace upgrade` 同步更新已装插件，新会话生效。
+- 视觉边界：Codex 额度显示**剩余**、Claude 显示**已用**；分隔符 / 配色由 Codex 控制，无进度条、不按百分比变色；`/compact` 期间可能短暂显示 0%。
+- 测试：`tests/codex.test.ts` 用 `tests/fixtures/fake-codex.cjs` 模拟 app-server（挂死 / 并发 / 写失败 / 版本开关）；`CC_HUD_CODEX_LIVE_TEST=1 npm test` 加测真实 Codex（隔离 CODEX_HOME、离线 provider），需本机 Codex ≥ 0.166.0。`npm test` 经 `scripts/test.cjs` 显式枚举 ts/cjs 测试并开 type stripping。
 
 ## 发版流程
 

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { CODEX_ITEMS } from '../dist/codex.js';
 
 const cli = fileURLToPath(new URL('../dist/cli.js', import.meta.url));
@@ -75,6 +76,19 @@ describe('Codex native footer commands', () => {
       assert.equal(f.run('setup').status, 1);
       assert.deepEqual(f.data().local, ['reasoning']);
       assert.ok(existsSync(f.backup));
+    } finally { f.clean(); }
+  });
+
+  it('restores the original footer after a release changed the preset', () => {
+    const f = fixture(['older-preset']);
+    try {
+      writeFileSync(f.backup, JSON.stringify({ schema: 1, previous: ['model'], applied: ['older-preset'] }));
+      assert.equal(f.run('setup').status, 0);
+      assert.deepEqual(f.data().local, CODEX_ITEMS);
+      assert.deepEqual(JSON.parse(readFileSync(f.backup, 'utf8')).applied, CODEX_ITEMS);
+      assert.equal(f.run('restore').status, 0);
+      assert.deepEqual(f.data().local, ['model']);
+      assert.ok(!existsSync(f.backup));
     } finally { f.clean(); }
   });
 
@@ -154,6 +168,7 @@ describe('npm entry compatibility', () => {
   });
   it('shows help without waiting for stdin and rejects invalid commands', () => {
     assert.match(spawnSync(process.execPath, [cli, '--help'], { encoding: 'utf8', timeout: 2000 }).stdout, /setup codex/);
+    assert.match(spawnSync(process.execPath, [cli, '--version'], { encoding: 'utf8', timeout: 2000 }).stdout, /^\d+\.\d+\.\d+/);
     const r = spawnSync(process.execPath, [cli, 'setup', 'claude'], { encoding: 'utf8' });
     assert.equal(r.status, 1);
     assert.match(r.stderr, /Usage:/);
@@ -207,6 +222,24 @@ describe('optional native theme', () => {
       assert.equal(f.run('restore-theme').status, 0);
       assert.equal(f.data().theme, undefined);
       assert.equal(f.data().colors, undefined);
+    } finally { f.clean(); }
+  });
+
+  it('refreshes a theme file it installed earlier, by recorded hash', () => {
+    const f = fixture();
+    try {
+      assert.equal(f.run('theme').status, 0);
+      const target = join(f.home, 'themes', 'cc-hud.tmTheme');
+      const backup = join(f.home, 'cc-hud-theme.json');
+      const asset = readFileSync(target, 'utf8');
+      const record = JSON.parse(readFileSync(backup, 'utf8'));
+      assert.equal(record.asset, createHash('sha256').update(asset).digest('hex'));
+      // Simulate an older release's file still on disk
+      writeFileSync(target, 'older shipped asset');
+      writeFileSync(backup, JSON.stringify({ ...record, asset: createHash('sha256').update('older shipped asset').digest('hex') }));
+      assert.equal(f.run('theme').status, 0);
+      assert.equal(readFileSync(target, 'utf8'), asset);
+      assert.equal(JSON.parse(readFileSync(backup, 'utf8')).asset, record.asset);
     } finally { f.clean(); }
   });
 

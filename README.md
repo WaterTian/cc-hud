@@ -175,77 +175,55 @@ Add to `~/.claude/settings.json`:
 
 ## Codex CLI — native footer
 
-CC-HUD also provides a compact **native Codex footer preset**. Codex owns its
-display and refresh: no background service, hooks, MCP server, transcript
-reader, or extra quota request. Requires Node >=18 and Codex CLI >=0.166.0.
+cc-hud can also configure **Codex CLI's own footer** once, so it shows the same
+kind of information: model + reasoning effort, context used, 5h / weekly limits,
+project and branch. Codex keeps rendering and refreshing it natively — no
+background service, hook, MCP server or extra quota request. Requires Codex CLI
+≥ 0.166.0 and Node ≥ 18.
 
-Install through Codex's plugin marketplace:
+Via Codex's plugin marketplace:
 
 ```bash
 codex plugin marketplace add WaterTian/cc-hud
 codex plugin add cc-hud@cc-hud
 ```
 
-Start a new Codex session, open `/plugins`, and run CC-HUD's setup, or ask
-Codex to use CC-HUD to configure its native footer. The packaged setup skill
-runs the included CLI; a global npm install isn't needed.
+Start a new Codex session, open `/plugins` and run CC-HUD's setup — or just ask
+Codex to "use cc-hud to configure my native footer". The bundled skill runs the
+packaged CLI; no global npm install is needed. Update with
+`codex plugin marketplace upgrade cc-hud` (installed plugin files refresh too).
 
-To update, refresh the Git marketplace, then start a new session. Codex also
-refreshes installed plugin files:
-
-```bash
-codex plugin marketplace upgrade cc-hud
-```
-
-The saved native footer survives plugin upgrades. Re-run setup only when a
-release changes the preset. Repo marketplaces are separate from OpenAI's
-reviewed public directory.
-
-For npm users (or a source checkout, using `node dist/cli.js`):
+Via npm (`npm i -g cc-hud`) or a checkout (`node dist/cli.js …`):
 
 ```bash
-cc-hud setup codex
-cc-hud check codex
-cc-hud restore codex
+cc-hud setup codex          # save the preset
+cc-hud check codex          # exit 0 when it is active
+cc-hud restore codex        # put your previous footer back
 ```
 
-Setup changes only `tui.status_line` through Codex's own TOML configuration
-API. It preserves the theme and all other settings, and stores the previous
-field in `$CODEX_HOME/cc-hud-native.json` (default `~/.codex`). Repeating setup
-doesn't replace that backup. Restore preserves later user edits; a conflict
-is reported rather than overwritten. Restart Codex to load saved changes.
-Restore before uninstalling the plugin if you want your previous footer;
-plugin removal by itself leaves the native preset in place.
+What setup touches — and what it doesn't:
 
-To bring the native colors closer to the Claude HUD, optionally apply the
-bundled 2.5 KB CC-HUD theme:
+- **Only `tui.status_line`** in your user `config.toml`, through Codex's own config API (atomic and version-guarded: a concurrent edit is rejected, never overwritten). Theme, auth, hooks, MCP servers and everything else stay as they are.
+- The previous value is saved to `$CODEX_HOME/cc-hud-native.json` (default `~/.codex`, mode 600); `restore` puts exactly that back. If you edited the footer yourself after setup, both setup and restore report the conflict instead of overwriting. The saved footer survives plugin upgrades; should a release change the preset, run setup again — restore still returns your original.
+- One temporary `codex app-server --stdio` handles the configuration requests and is terminated when the command ends. Normal Codex launches need no cc-hud command and no `-c` override.
+- `CC_HUD_CODEX` points at the executable (or npm's `bin/codex.js`) when `codex` isn't on `PATH`.
 
-```bash
-cc-hud theme codex
-# In the running CLI: /theme → search cc-hud → Enter
-cc-hud restore-theme codex  # restore your earlier theme preferences
-```
+The native footer **approximates** the Claude HUD: Codex controls separators and
+colors, has no progress bar, and shows quota **remaining** where the Claude HUD
+shows quota used. Missing windows are omitted; during `/compact` Codex may
+briefly show 0% context used. Run `restore` before uninstalling the plugin if
+you want your old footer back — removing the plugin alone leaves the preset.
 
-This uses Codex's supported `.tmTheme` mechanism. Models are blue, the project
-is cyan, and branches/context/limits are green. It also colors syntax
-highlighting. Native footer colors distinguish fields; they don't change at
-the Claude HUD's usage thresholds. Only `tui.theme` and
-`tui.status_line_use_colors` are changed, with their previous values saved to
-`$CODEX_HOME/cc-hud-theme.json`. Later user edits and modified theme files are
-preserved. Restoring settings leaves the small theme file available to select
-again. Footer setup still preserves your theme unless you request this option.
-
-The native item order is model + effort, context used, primary and secondary
-limits, project name, then Git branch. Its appearance **approximates** the
-Claude HUD: Codex controls separators and colors, has no cc-hud progress bar,
-and shows quota **remaining**, while the Claude HUD shows quota used. Missing
-windows are omitted. During `/compact`, Codex can briefly show 0% context used.
-
-Setup/check/restore start one temporary `codex app-server --stdio` process for
-configuration requests only; it exits when the command completes. Normal
-Codex launches need no cc-hud command or `-c` overrides (which would bypass
-Codex's shared daemon). `CC_HUD_CODEX` can select an executable or npm
-`bin/codex.js` path when Codex isn't on `PATH`.
+**Optional theme.** `cc-hud theme codex` installs the bundled 2.5 KB
+`cc-hud.tmTheme` into `$CODEX_HOME/themes/` and sets `tui.theme` +
+`tui.status_line_use_colors` (previous values saved to
+`$CODEX_HOME/cc-hud-theme.json`). Models are blue, the project cyan,
+branch / context / limits green — fixed per field, not the Claude HUD's usage
+thresholds — and it colors syntax highlighting too, which is why it is a
+separate opt-in. In a running TUI: `/theme` → search `cc-hud` → Enter.
+`cc-hud restore-theme codex` restores your earlier preferences and keeps the
+theme file around. A theme file you edited is never overwritten; a newer
+release only replaces the file cc-hud installed itself.
 
 ## How It Works
 

@@ -1,11 +1,31 @@
-// One short-lived Codex process for configuration commands only. No threads,
-// prompts, usage requests, credentials handling, or per-tick cc-hud process.
+// One short-lived `codex app-server --stdio` for configuration commands only:
+// initialize → config/read → config/batchWrite → re-read, then the process is
+// terminated. No threads, prompts, usage requests or credentials handling, and
+// no per-tick cc-hud process — Codex renders its own footer afterwards.
 import { execFile, execFileSync, spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { promisify } from 'node:util';
 const exec = promisify(execFile);
+const MIN_VERSION = '0.166.0';
+const REQUEST_DEADLINE_MS = 10_000;
+export async function readUserLayer(request) {
+    const result = (await request('config/read', { includeLayers: true }));
+    const user = result?.layers?.find(l => l?.name?.type === 'user' && !l.name.profile);
+    if (!user?.name?.file || !user.version)
+        throw new Error('Codex did not return a supported user configuration layer.');
+    return { file: user.name.file, version: user.version, tui: user.config?.tui ?? {}, effectiveTui: result?.config?.tui ?? {} };
+}
+// Codex owns TOML parsing and the atomic write, including removing a key for a
+// JSON null; `expectedVersion` makes it reject a concurrent edit of the file.
+export async function writeUserLayer(request, layer, edits) {
+    await request('config/batchWrite', {
+        filePath: layer.file,
+        expectedVersion: layer.version,
+        edits: edits.map(e => ({ ...e, mergeStrategy: 'replace' })),
+    });
+}
 function command() {
     let executable = process.env.CC_HUD_CODEX || 'codex';
     if (process.platform === 'win32' && !/\.(?:exe|[cm]?js)$/i.test(executable)) {
@@ -35,28 +55,35 @@ function command() {
         ? { executable: process.execPath, prefix: [executable] }
         : { executable, prefix: [] };
 }
-export async function withCodex(home, use) {
-    const cmd = command();
-    let version;
+// `codex --version` → "codex-cli 0.166.0"; anything below MIN_VERSION (or a
+// 0.166.0 pre-release) lacks the config API used here.
+async function checkVersion(cmd) {
+    let stdout;
     try {
-        const { stdout } = await exec(cmd.executable, [...cmd.prefix, '--version'], { timeout: 3000, maxBuffer: 8192, windowsHide: true });
-        const match = stdout.trim().match(/^codex-cli (\d+)\.(\d+)\.(\d+)([^\s]*)$/);
-        if (!match)
-            throw new Error();
-        const [, major, minor, patch, prerelease] = match;
-        if (+major === 0 && (+minor < 166 || (+minor === 166 && +patch === 0 && prerelease.startsWith('-'))))
-            throw new Error();
-        version = match[0];
+        ({ stdout } = await exec(cmd.executable, [...cmd.prefix, '--version'], { timeout: 3000, maxBuffer: 8192, windowsHide: true }));
     }
     catch {
-        throw new Error('Codex CLI >= 0.166.0 is required; install or update Codex first.');
+        const where = process.env.CC_HUD_CODEX ? `at CC_HUD_CODEX=${process.env.CC_HUD_CODEX}` : 'on PATH';
+        throw new Error(`Codex CLI not found ${where}; install Codex or point CC_HUD_CODEX at its executable.`);
     }
+    const match = stdout.trim().match(/^codex-cli (\d+)\.(\d+)\.(\d+)(\S*)$/);
+    const [, major, minor, patch, prerelease] = match ?? [];
+    const tooOld = !match || (+major === 0 && (+minor < 166 || (+minor === 166 && +patch === 0 && prerelease.startsWith('-'))));
+    if (tooOld)
+        throw new Error(`Codex CLI >= ${MIN_VERSION} is required (found ${match?.[0] ?? 'an unrecognised version'}); update Codex first.`);
+    return match[0];
+}
+export async function withCodex(home, use) {
+    const cmd = command();
+    const version = await checkVersion(cmd);
     const child = spawn(cmd.executable, [...cmd.prefix, 'app-server', '--stdio'], {
         cwd: home, env: { ...process.env, CODEX_HOME: home }, stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true,
     });
     let nextId = 0;
+    let dead = null; // once set, every pending and future request fails with it
     const pending = new Map();
     const fail = (message) => {
+        dead ??= message;
         for (const p of pending.values())
             p.reject(new Error(message));
         pending.clear();
@@ -66,41 +93,45 @@ export async function withCodex(home, use) {
     child.stdin.on('error', () => fail('Codex configuration input closed.'));
     const lines = createInterface({ input: child.stdout });
     lines.on('line', line => {
-        let response;
+        let message;
         try {
-            response = JSON.parse(line);
+            message = JSON.parse(line);
         }
         catch {
             return;
         }
-        if (!response || typeof response !== 'object')
+        // Only responses to our own requests: skip notifications and any
+        // server-initiated request (both carry a `method`).
+        if (!message || typeof message !== 'object' || 'method' in message || message.id == null)
             return;
-        const p = response.id == null ? undefined : pending.get(response.id);
+        const p = pending.get(message.id);
         if (!p)
             return;
-        pending.delete(response.id);
-        // Do not log server error bodies: config errors may contain private values.
-        if (response.error)
+        pending.delete(message.id);
+        // Do not surface server error bodies: config errors may contain private values.
+        if (message.error)
             p.reject(new Error('Codex rejected the configuration request. Check its config or retry if it changed concurrently.'));
         else
-            p.resolve(response.result);
+            p.resolve(message.result);
     });
     const request = (method, params) => new Promise((resolve, reject) => {
+        if (dead)
+            return reject(new Error(dead));
         const id = ++nextId;
         pending.set(id, { resolve, reject });
         child.stdin.write(JSON.stringify({ id, method, params }) + '\n');
     });
-    const timer = setTimeout(() => {
+    const deadline = setTimeout(() => {
         fail('Codex configuration timed out.');
         child.kill();
-    }, 10_000);
+    }, REQUEST_DEADLINE_MS);
     try {
         await request('initialize', { clientInfo: { name: 'cc_hud_setup', version: '1' } });
         child.stdin.write('{"method":"initialized"}\n');
         return await use(request, version);
     }
     finally {
-        clearTimeout(timer);
+        clearTimeout(deadline);
         lines.close();
         child.stdin.end();
         child.kill();
