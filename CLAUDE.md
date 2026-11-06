@@ -23,15 +23,15 @@ cc-hud — 精简的 Claude Code 单行状态栏插件，显示模型名称、�
 .claude-plugin/plugin.json  — Claude Code 插件清单
 commands/setup.md           — 安装配置命令（v0.5.0+ 写 launcher 到 <cfg>/bin/；cfg = $CLAUDE_CONFIG_DIR 或 ~/.claude）
 src/
-  index.ts                  — 入口：stdin → 解析 → 渲染 → stdout（全程只写一次 stdout，异常路径也输出最简行）
+  index.ts                  — 入口：stdin → 解析 → 渲染 → stdout（全程只写一次 stdout；异常和 2s 超时路径都输出仅含 stdin 数据的行）
   stdin.ts                  — 解析 stdin JSON（非普通对象一律视为 {}）
-  transcript.ts             — 读 transcript JSONL 尾部 64KB，提取活跃 agent + 思考深度（effort）
+  transcript.ts             — 思考深度（effort）来自 transcript 尾部 64KB；活跃 agent 来自 <session>/subagents/agent-*.meta.json（Claude Code 异步启动 agent 时写入，结束时标 finished；15 分钟无心跳视为死亡），旧版同步 agent 仍走 transcript
   render.ts                 — 单行紧凑渲染（1/8 精度进度条 + ANSI 颜色；自由文本先剥控制字符）
   model.ts                  — 模型名美化（claude-opus-4-7[1m] → Opus 4.7 (1M)）
   git.ts                    — 工作区段：目录名 + 分支 + 脏标记（800ms 预算，--no-optional-locks；status 失败 = 未知，不当 clean）
   claude.ts                 — 顶级模型周用量（OAuth usage API）：tick 只读缓存，网络全在 refresh.ts
   refresh.ts                — 分离式刷新子进程入口（node refresh.js <kind>，8s 预算，拉取后写缓存）
-  cache.ts                  — 缓存约定：~/.cache/cc-hud/<name>.json、原子写；两种纪律：detached（serveCache：tick 只读 + spawn 刷新子进程，TTL / 冷却 / stale 判定）与 inline（cachedInline：采集器 tick 内拉取，失败退回旧值）
+  cache.ts                  — 缓存约定：~/.cache/cc-hud/<name>.json、原子写；两种纪律：detached（serveCache：tick 只读 + spawn 刷新子进程，TTL / 冷却 / stale 判定）与 inline（cachedInline：采集器 tick 内拉取，失败退回旧值并记 failTs，30s 内不重试；30 分钟没拿到新值标 stale → 渲染加 ~）
   http.ts                   — JSON GET：fetchJson（刷新子进程用）配了代理只走 curl（Node fetch 不认代理，先试就会带着 token 直连），curl 失败不回退；无代理时原生 fetch 优先，传输失败或 WAF 403 回退 curl。fetchJsonNative（采集器用）仅原生 fetch，INLINE_TIMEOUT_MS = 1.2s，不起 curl
   env.ts                    — 布尔环境变量开关（"" / "0" / "false" 视为关）
   balance.ts / glm.ts / mmx.ts  — DeepSeek / GLM / MiniMax 余额或配额采集：只剩后端判定 + 响应解析，缓存与拉取走 cache.cachedInline + http.fetchJsonNative（未命中时 tick 内拉取，1.2s 预算，失败退回旧值）
@@ -59,7 +59,7 @@ preview.html / cc-hud-preview.{svg,png} — README 顶部预览图源文件与�
 
 ```
 Claude Code → stdin JSON → cc-hud → stdout → 状态栏
-           ↘ transcript JSONL（尾部 64KB → 活跃 agent + 思考深度 effort）
+           ↘ transcript JSONL（尾部 64KB → 思考深度 effort）+ <session>/subagents/*.meta.json（活跃 agent）
            ↘ git symbolic-ref / status（目录 · 分支*，800ms 预算）
            ↘ ~/.cache/cc-hud/claude-plan.json（只读；过期则 spawn detached refresh.js 后台拉取写回）
 
@@ -71,8 +71,8 @@ Codex（仅显式命令，与 tick 无关）：cc-hud <action> codex → 临时 
 - **无状态** — 每次调用都是独立进程，无内存泄漏风险
 - **尾部读取** — 只读 transcript 最后 64KB，不全量解析
 - **字符串预过滤** — 只对含 `"Agent"` / `"tool_result"` / `"effort"` 的行做 JSON.parse（assistant 行基本都带 effort，省掉的主要是 user / progress 等行）
-- **2s 硬超时** — setTimeout + unref()，异常时强制退出不阻塞 Claude Code；第三方采集器的 inline fetch 预算 1.2s，超时只丢该段不丢整行
-- **只写一次 stdout** — 多写一行会污染状态栏；异常路径也只输出最简 `[Claude]` 行
+- **2s 硬超时** — setTimeout + unref()，超时先输出仅含 stdin 数据的行再退出，不阻塞 Claude Code 也不留空白；第三方采集器的 inline fetch 预算 1.2s，超时只丢该段不丢整行，失败后 30s 冷却不每 tick 重试
+- **只写一次 stdout** — 多写一行会污染状态栏；emit 用 writeSync 同步写（macOS / Windows 的管道是异步的，超时路径紧接着 exit），异常路径输出 stdin 能算出的部分，最差 `[Claude]`
 - **所有 IO try-catch** — 失败静默降级，不崩溃
 - **tick 内零网络（官方后端）** — claude.ts 只读缓存，网络请求全部由 detached 刷新子进程完成；OAuth usage 接口的 WAF 会 403 拦截 Node TLS 指纹，需 curl 回退（2026-07 实测）
 

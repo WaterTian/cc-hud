@@ -201,4 +201,33 @@ describe('dist/index.js end-to-end', () => {
     const r = await run(JSON.stringify(FULL), home);
     assert.ok(r.ms < 1500, `took ${r.ms}ms`);
   });
+
+  it('shows a running async agent from the sidecar meta, after the transcript has its launch receipt', async () => {
+    const transcript = join(home, 'async.jsonl');
+    writeFileSync(transcript, [
+      JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', id: 'toolu_9', name: 'Agent', input: { subagent_type: 'explore' } }] } }),
+      JSON.stringify({ type: 'user', toolUseResult: { status: 'async_launched' }, message: { content: [{ type: 'tool_result', tool_use_id: 'toolu_9', content: 'Async agent launched successfully.' }] } }),
+    ].join('\n') + '\n');
+    const sub = join(home, 'async', 'subagents');
+    mkdirSync(sub, { recursive: true });
+    writeFileSync(join(sub, 'agent-abc.meta.json'), JSON.stringify({ agentType: 'explore', model: 'haiku', toolUseId: 'toolu_9' }));
+    writeFileSync(join(sub, 'agent-abc.jsonl'), '{}\n');
+    const r = await run(JSON.stringify({
+      model: { id: 'claude-fable-5-1' },
+      context_window: { used_percentage: 10, current_usage: { input_tokens: 1 } },
+      transcript_path: transcript,
+    }), home);
+    assert.equal(r.out, '[Fable 5.1] █░░░░░░░░░ 10% │ ◐ explore [haiku]');
+  });
+
+  it('prints the stdin-only line at the hard timeout when a collector hangs', { skip: process.platform === 'win32' }, async () => {
+    // A git that ignores SIGTERM keeps its stdout open past execFile's 800 ms kill
+    const bin = join(home, 'bin');
+    mkdirSync(bin, { recursive: true });
+    writeFileSync(join(bin, 'git'), '#!/bin/sh\ntrap "" TERM\nsleep 6\n', { mode: 0o755 });
+    const r = await run(JSON.stringify({ ...FULL, workspace: { current_dir: plainDir } }), home, { PATH: `${bin}:${process.env.PATH}` });
+    assert.equal(r.code, 0);
+    assert.equal(r.out, '[Fable 5.1 · XHigh] ███▊░░░░░░ 37% (1M) │ 5h:11% │ 7d:15% │ spend:$12/$50 │ one day:7%');
+    assert.ok(r.ms >= 1900 && r.ms < 4000, `took ${r.ms}ms`);
+  });
 });

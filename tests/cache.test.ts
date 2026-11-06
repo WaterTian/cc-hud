@@ -87,4 +87,50 @@ describe('cache', () => {
       assert.ok(existsSync(join(cacheDir(), 'fresh.json')));
     });
   });
+
+  describe('cachedInline', () => {
+    it('serves a fresh entry without calling the fetcher', async () => {
+      const { writeCache, cachedInline } = await importCache();
+      const now = Date.now();
+      writeCache('bal', { payload: 'v1', ts: now, okTs: now });
+      let calls = 0;
+      assert.deepEqual(await cachedInline('bal', async () => { calls++; return 'v2'; }), { payload: 'v1', stale: false });
+      assert.equal(calls, 0);
+    });
+
+    it('writes a fetched value with okTs and serves it fresh', async () => {
+      const { cachedInline, readCache } = await importCache();
+      assert.deepEqual(await cachedInline('new', async () => 'v'), { payload: 'v', stale: false });
+      const e = readCache<string>('new')!;
+      assert.equal(e.payload, 'v');
+      assert.equal(e.okTs, e.ts);
+    });
+
+    it('a failed fetch is not retried within the cooldown', async () => {
+      const { cachedInline, readCache } = await importCache();
+      let calls = 0;
+      const dead = async () => { calls++; return null; };
+      assert.equal(await cachedInline('dead', dead), null);
+      assert.equal(await cachedInline('dead', dead), null);
+      assert.equal(calls, 1);
+      assert.ok((readCache('dead')?.failTs ?? 0) > 0);
+    });
+
+    it('keeps the old payload on failure and flags it stale after 30 min', async () => {
+      const { writeCache, cachedInline, STALE_MS, TTL } = await importCache();
+      const old = Date.now() - STALE_MS - 60_000;
+      writeCache('aged', { payload: 'v', ts: old, okTs: old });
+      assert.deepEqual(await cachedInline('aged', async () => null), { payload: 'v', stale: true });
+      // Recent failure, but the last good value is younger than STALE_MS → not stale
+      const recent = Date.now() - TTL - 1000;
+      writeCache('recent', { payload: 'w', ts: recent, okTs: recent });
+      assert.deepEqual(await cachedInline('recent', async () => null), { payload: 'w', stale: false });
+    });
+
+    it('treats an entry written before okTs existed as good at its ts', async () => {
+      const { writeCache, cachedInline } = await importCache();
+      writeCache('legacy', { payload: 'v', ts: Date.now() });
+      assert.deepEqual(await cachedInline('legacy', async () => null), { payload: 'v', stale: false });
+    });
+  });
 });

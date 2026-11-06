@@ -79,7 +79,7 @@ describe('deepseek balance', () => {
 
     it('formats the first balance entry and sends Bearer auth', async () => {
       const { getExtra } = await importBalance();
-      assert.equal(await getExtra(), '¥13.44');
+      assert.equal((await getExtra())?.payload, '¥13.44');
       assert.equal(fetchCalls[0]?.url, 'https://api.deepseek.com/user/balance');
       const headers = fetchCalls[0]?.init?.headers as Record<string, string> | undefined;
       assert.equal(headers?.Authorization, 'Bearer sk-test');
@@ -107,12 +107,12 @@ describe('deepseek balance', () => {
 
     it('falls back to a stale cache when the fetch fails', async () => {
       const { getExtra } = await importBalance();
-      assert.equal(await getExtra(), '¥13.44');
+      assert.equal((await getExtra())?.payload, '¥13.44');
       const cached = JSON.parse(readFileSync(cachePath(), 'utf8'));
       cached.ts = Date.now() - 10 * 60 * 1000;
       writeFileSync(cachePath(), JSON.stringify(cached));
       nextError = new Error('network down');
-      assert.equal(await getExtra(), '¥13.44');
+      assert.equal((await getExtra())?.payload, '¥13.44');
     });
 
     it('aborts a hanging endpoint within the 1.2s budget — well before the 2s hard exit', async () => {

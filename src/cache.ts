@@ -20,9 +20,10 @@ export type RefreshKind = 'claude';
 
 export interface CacheEntry<T> {
   payload: T | null;
-  ts: number;         // last refresh attempt (TTL gate)
+  ts: number;         // TTL gate — detached: last refresh attempt; inline: last successful fetch
   okTs?: number;      // last refresh that actually got data (stale gate)
   refreshTs?: number; // last detached-refresh spawn (cooldown gate)
+  failTs?: number;    // last failed inline fetch (retry cooldown gate)
 }
 
 export interface Served<T> {
@@ -110,14 +111,26 @@ export function serveCache<T>(name: string, kind: RefreshKind): Served<T> | null
 
 // Inline discipline (third-party balance / quota collectors): a fresh entry
 // is served as is; a miss runs `fetcher` INSIDE the tick — it must keep its
-// own budget (http.INLINE_TIMEOUT_MS) — and writes the cache; a failed fetch
-// serves whatever was cached before, however old.
-export async function cachedInline<T>(name: string, fetcher: () => Promise<T | null>): Promise<T | null> {
+// own budget (http.INLINE_TIMEOUT_MS) — and writes the cache. A failed fetch
+// serves whatever was cached before (flagged stale once it is older than
+// STALE_MS) and records failTs, so a dead endpoint is retried at most once
+// per REFRESH_COOLDOWN instead of on every 300 ms tick.
+export async function cachedInline<T>(name: string, fetcher: () => Promise<T | null>): Promise<Served<T> | null> {
   const cached = readCache<T>(name);
-  if (cached?.payload != null && Date.now() - cached.ts < TTL) return cached.payload;
+  const now = Date.now();
+  const okTs = cached?.okTs ?? cached?.ts; // entries written before okTs existed
+  const old = (): Served<T> | null =>
+    cached?.payload != null ? { payload: cached.payload, stale: okTs == null || now - okTs > STALE_MS } : null;
+
+  if (cached?.payload != null && now - cached.ts < TTL) return old();
+  if (cached?.failTs != null && now - cached.failTs < REFRESH_COOLDOWN) return old();
+
   let fresh: T | null = null;
   try { fresh = await fetcher(); } catch { /* collector failure → stale */ }
-  if (fresh == null) return cached?.payload ?? null;
-  writeCache(name, { payload: fresh, ts: Date.now() });
-  return fresh;
+  if (fresh == null) {
+    writeCache<T>(name, { payload: cached?.payload ?? null, ts: cached?.ts ?? 0, okTs, failTs: now });
+    return old();
+  }
+  writeCache<T>(name, { payload: fresh, ts: now, okTs: now });
+  return { payload: fresh, stale: false };
 }

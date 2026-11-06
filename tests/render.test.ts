@@ -20,6 +20,7 @@ function makeData(overrides: Partial<RenderData> = {}): RenderData {
     spendLimit: null,
     extraLimits: [],
     topModel: null,
+    quotaStale: false,
     topModelStale: false,
     workspace: null,
     extra: null,
@@ -341,5 +342,10 @@ describe('render', () => {
   it('marks an unknown git status with ? rather than showing a clean branch', () => {
     const out = strip(render(makeData({ workspace: { name: 'cc-hud', branch: 'main', dirty: null } })));
     assert.match(out, /cc-hud · main\?/);
+  });
+
+  it('prefixes third-party 5h / 7d labels with ~ when their cache is stale', () => {
+    const out = strip(render(makeData({ fiveHourPercent: 17, sevenDayPercent: 2, quotaStale: true })));
+    assert.ok(out.includes('~5h:17%') && out.includes('~7d:2%'), out);
   });
 });

@@ -120,6 +120,7 @@ export interface RenderData {
   sevenDayPercent: number | null;
   fiveHourResetsAt: number | null;
   sevenDayResetsAt: number | null;
+  quotaStale: boolean;    // 5h / 7d came from a third-party cache not refreshed for > 30 min — labels get a ~ prefix
   spendLimit: SpendLimit | null;
   extraLimits: ExtraLimit[];
   thinkingDepth: string | null;

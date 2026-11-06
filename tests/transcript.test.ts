@@ -1,10 +1,10 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { parseTranscript } from '../dist/transcript.js';
+import { parseTranscript, AGENT_HEARTBEAT_MS } from '../dist/transcript.js';
 
 // Build a JSONL transcript file from line objects and return its path.
 describe('parseTranscript', () => {
@@ -138,5 +138,72 @@ describe('parseTranscript', () => {
       { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'toolu_gone' }] } },
     ]));
     assert.deepEqual(agents, []);
+  });
+
+  // ─── Async agents (sidecar meta files) ────────────────────────
+  // Claude Code answers an Agent call at once with an "async_launched"
+  // receipt and tracks the run in <session>/subagents/agent-<id>.meta.json.
+
+  const asyncReceipt = (tool_use_id: string) => ({
+    type: 'user',
+    toolUseResult: { isAsync: true, status: 'async_launched', agentId: 'x' },
+    message: { content: [{ type: 'tool_result', tool_use_id, content: 'Async agent launched successfully.' }] },
+  });
+
+  const meta = (agentId: string, body: Record<string, unknown>, ageMs = 0) => {
+    const d = join(dir, 'session', 'subagents');
+    mkdirSync(d, { recursive: true });
+    const metaFile = join(d, `agent-${agentId}.meta.json`);
+    const log = join(d, `agent-${agentId}.jsonl`);
+    writeFileSync(metaFile, JSON.stringify(body));
+    writeFileSync(log, '{}\n');
+    if (ageMs) {
+      const t = (Date.now() - ageMs) / 1000;
+      utimesSync(metaFile, t, t);
+      utimesSync(log, t, t);
+    }
+  };
+
+  it('keeps an async-launched agent visible while its meta is unfinished', async () => {
+    meta('x1', { agentType: 'explore', model: 'haiku', description: 'probe', toolUseId: 'a1' });
+    const { agents } = await parseTranscript(write([agentUse('a1', 'explore', 'haiku'), asyncReceipt('a1')]));
+    assert.deepEqual(agents, [{ id: 'a1', type: 'explore', model: 'haiku', description: 'probe', status: 'running' }]);
+  });
+
+  it('drops it once the meta says finished', async () => {
+    meta('x1', { agentType: 'explore', toolUseId: 'a1', finished: true });
+    const { agents } = await parseTranscript(write([agentUse('a1', 'explore'), asyncReceipt('a1')]));
+    assert.deepEqual(agents, []);
+  });
+
+  it('hides an async receipt that has no sidecar at all', async () => {
+    const { agents } = await parseTranscript(write([agentUse('a1', 'explore'), asyncReceipt('a1')]));
+    assert.deepEqual(agents, []);
+  });
+
+  it('lists a running sidecar agent even when its launch fell outside the tail window', async () => {
+    meta('x2', { agentType: 'general-purpose', toolUseId: 'a2' });
+    const { agents } = await parseTranscript(write([assistant('high')]));
+    assert.equal(agents.length, 1);
+    assert.equal(agents[0].id, 'a2');
+    assert.equal(agents[0].model, undefined);
+  });
+
+  it('ignores an unfinished meta whose transcript stopped growing before the heartbeat window', async () => {
+    meta('x3', { agentType: 'explore', toolUseId: 'a3' }, AGENT_HEARTBEAT_MS + 60_000);
+    const { agents } = await parseTranscript(write([assistant('high')]));
+    assert.deepEqual(agents, []);
+  });
+
+  it('merges sidecar and transcript agents by tool_use id', async () => {
+    meta('x1', { agentType: 'explore', toolUseId: 'a1' });
+    const { agents } = await parseTranscript(write([agentUse('a1', 'explore'), agentUse('a4', 'Plan')]));
+    assert.deepEqual(agents.map(a => a.id).sort(), ['a1', 'a4']);
+  });
+
+  it('still scans the sidecar when the transcript file is unreadable', async () => {
+    meta('x1', { agentType: 'explore', toolUseId: 'a1' });
+    const { agents } = await parseTranscript(file); // never written
+    assert.equal(agents.length, 1);
   });
 });

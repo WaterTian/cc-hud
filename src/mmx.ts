@@ -2,7 +2,7 @@
 // the official backend gets from stdin. Active when ANTHROPIC_BASE_URL
 // contains "minimax" ("minimaxi.com" → CN endpoint, anything else → global)
 // and ANTHROPIC_AUTH_TOKEN is set. Cache: ~/.cache/cc-hud/mmx-quota.json (5 min).
-import { cachedInline } from './cache.js';
+import { cachedInline, type Served } from './cache.js';
 import { fetchJsonNative } from './http.js';
 
 export interface MmxQuota {
@@ -43,7 +43,7 @@ function aggregatePlan(remains: unknown): MmxQuota | null {
   return Object.values(quota).every(Number.isFinite) ? quota : null;
 }
 
-export async function getMmxQuota(): Promise<MmxQuota | null> {
+export async function getMmxQuota(): Promise<Served<MmxQuota> | null> {
   if (!process.env.ANTHROPIC_BASE_URL?.includes('minimax')) return null;
   const apiKey = process.env.ANTHROPIC_AUTH_TOKEN;
   if (!apiKey) return null;

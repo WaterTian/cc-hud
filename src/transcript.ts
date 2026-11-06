@@ -1,7 +1,17 @@
 // Transcript tail reader — last 64 KB of the session JSONL → running
-// subagents (Agent tool_use without a matching tool_result) and the latest
-// main-chain reasoning effort. Any read / parse failure → EMPTY.
-import { open, stat } from 'node:fs/promises';
+// subagents and the latest main-chain reasoning effort. Any read / parse
+// failure → EMPTY.
+//
+// Subagents come from two sources, merged by tool_use id:
+//   • sidecar — Claude Code launches Agent calls asynchronously: the
+//     tool_result arrives at once ("async_launched") and the run is tracked in
+//     <transcript dir>/<session>/subagents/agent-<id>.meta.json, written at
+//     launch and rewritten with `finished: true` at the end. This is the
+//     authoritative source and is independent of the 64 KB window.
+//   • transcript — an Agent tool_use without any tool_result (older builds
+//     that ran agents synchronously).
+import { open, readdir, readFile, stat } from 'node:fs/promises';
+import { join } from 'node:path';
 import type { AgentEntry } from './types.js';
 
 interface ContentBlock {
@@ -19,6 +29,14 @@ interface TranscriptLine {
   message?: { content?: ContentBlock[] };
 }
 
+interface AgentMeta {
+  agentType?: unknown;
+  description?: unknown;
+  model?: unknown;
+  toolUseId?: unknown;
+  finished?: unknown;
+}
+
 export interface TranscriptInfo {
   agents: AgentEntry[];
   effort: string | null; // reasoning effort of the latest main-chain turn ("思考深度")
@@ -27,6 +45,11 @@ export interface TranscriptInfo {
 const EMPTY: TranscriptInfo = { agents: [], effort: null };
 
 const TAIL_BYTES = 64 * 1024; // 64 KB — agent entries & the latest effort are near the end
+// An unfinished meta whose agent transcript has not grown for this long is a
+// leftover from a killed session, not a running agent.
+export const AGENT_HEARTBEAT_MS = 15 * 60 * 1000;
+
+const str = (v: unknown): string | undefined => (typeof v === 'string' && v ? v : undefined);
 
 async function readTail(filePath: string): Promise<string> {
   const info = await stat(filePath);
@@ -60,25 +83,50 @@ async function readTail(filePath: string): Promise<string> {
   }
 }
 
+// Sidecar scan: every agent-*.meta.json without `finished: true` whose
+// transcript (or, failing that, the meta file) was touched recently.
+async function sidecarAgents(transcriptPath: string): Promise<AgentEntry[]> {
+  const dir = join(transcriptPath.replace(/\.jsonl$/i, ''), 'subagents');
+  let names: string[];
+  try { names = (await readdir(dir)).filter(n => n.endsWith('.meta.json')).sort(); } catch { return []; }
+
+  const now = Date.now();
+  const found = await Promise.all(names.map(async (name): Promise<AgentEntry | null> => {
+    try {
+      const metaPath = join(dir, name);
+      const meta = JSON.parse(await readFile(metaPath, 'utf8')) as AgentMeta;
+      if (meta.finished === true) return null;
+      const beat = await stat(metaPath.replace(/\.meta\.json$/, '.jsonl')).catch(() => stat(metaPath));
+      if (now - beat.mtimeMs > AGENT_HEARTBEAT_MS) return null;
+      return {
+        id: str(meta.toolUseId) ?? name,
+        type: str(meta.agentType) ?? 'general-purpose',
+        model: str(meta.model),
+        description: str(meta.description),
+        status: 'running',
+      };
+    } catch { return null; }
+  }));
+  return found.filter((a): a is AgentEntry => a !== null);
+}
+
 // Single tail read → active subagents + current thinking depth.
 export async function parseTranscript(transcriptPath: string | undefined): Promise<TranscriptInfo> {
   if (!transcriptPath) return EMPTY;
 
+  const sidecar = sidecarAgents(transcriptPath);
   let text: string;
   try {
     text = await readTail(transcriptPath);
   } catch {
-    return EMPTY;
+    text = '';
   }
 
-  if (!text) return EMPTY;
-
   const agents = new Map<string, AgentEntry>();
-  const completed = new Set<string>();
+  const settled = new Set<string>(); // tool_use ids with a tool_result (sync completion or async launch)
   let effort: string | null = null; // last (= most recent) main-chain assistant effort wins
 
-  const lines = text.split('\n');
-  for (const line of lines) {
+  for (const line of text.split('\n')) {
     // Fast pre-filter: skip lines that carry neither agent data nor an effort field
     const maybeAgent = line.includes('"Agent"') || line.includes('"tool_result"');
     const maybeEffort = line.includes('"effort"');
@@ -111,20 +159,15 @@ export async function parseTranscript(transcriptPath: string | undefined): Promi
           status: 'running',
         });
       }
-
-      if (block.type === 'tool_result' && block.tool_use_id) {
-        completed.add(block.tool_use_id);
-      }
+      // Either a real completion or the immediate "async_launched" receipt —
+      // in both cases the transcript no longer knows whether the agent runs;
+      // the sidecar does.
+      if (block.type === 'tool_result' && block.tool_use_id) settled.add(block.tool_use_id);
     }
   }
 
-  for (const id of completed) {
-    const agent = agents.get(id);
-    if (agent) agent.status = 'completed';
-  }
+  for (const id of settled) agents.delete(id);
+  for (const a of await sidecar) agents.set(a.id, a);
 
-  return {
-    agents: [...agents.values()].filter(a => a.status === 'running'),
-    effort,
-  };
+  return { agents: [...agents.values()], effort };
 }

@@ -143,7 +143,7 @@ describe('mmx quota', () => {
         }],
       }));
       const { getMmxQuota } = await importMmx();
-      const result = await getMmxQuota();
+      const result = (await getMmxQuota())?.payload;
       assert.ok(result);
       assert.equal(result!.fiveHourUsedPct, 17);  // 100 - 83
       assert.equal(result!.sevenDayUsedPct, 2);   // 100 - 98
@@ -161,7 +161,7 @@ describe('mmx quota', () => {
         ],
       }));
       const { getMmxQuota } = await importMmx();
-      const result = await getMmxQuota();
+      const result = (await getMmxQuota())?.payload;
       // Should pick 'general': 100-74=26%, 100-94=6%
       assert.equal(result!.fiveHourUsedPct, 26);
       assert.equal(result!.sevenDayUsedPct, 6);
@@ -178,7 +178,7 @@ describe('mmx quota', () => {
         }],
       }));
       const { getMmxQuota } = await importMmx();
-      const result = await getMmxQuota();
+      const result = (await getMmxQuota())?.payload;
       assert.equal(result!.fiveHourUsedPct, 50);
       assert.equal(result!.sevenDayUsedPct, 40);
     });
@@ -208,7 +208,7 @@ describe('mmx quota', () => {
         }],
       }));
       const { getMmxQuota } = await importMmx();
-      const result = await getMmxQuota();
+      const result = (await getMmxQuota())?.payload;
       assert.equal(result!.fiveHourUsedPct, 0);
       assert.equal(result!.sevenDayUsedPct, 0);
     });

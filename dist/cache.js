@@ -90,19 +90,28 @@ export function serveCache(name, kind) {
 }
 // Inline discipline (third-party balance / quota collectors): a fresh entry
 // is served as is; a miss runs `fetcher` INSIDE the tick — it must keep its
-// own budget (http.INLINE_TIMEOUT_MS) — and writes the cache; a failed fetch
-// serves whatever was cached before, however old.
+// own budget (http.INLINE_TIMEOUT_MS) — and writes the cache. A failed fetch
+// serves whatever was cached before (flagged stale once it is older than
+// STALE_MS) and records failTs, so a dead endpoint is retried at most once
+// per REFRESH_COOLDOWN instead of on every 300 ms tick.
 export async function cachedInline(name, fetcher) {
     const cached = readCache(name);
-    if (cached?.payload != null && Date.now() - cached.ts < TTL)
-        return cached.payload;
+    const now = Date.now();
+    const okTs = cached?.okTs ?? cached?.ts; // entries written before okTs existed
+    const old = () => cached?.payload != null ? { payload: cached.payload, stale: okTs == null || now - okTs > STALE_MS } : null;
+    if (cached?.payload != null && now - cached.ts < TTL)
+        return old();
+    if (cached?.failTs != null && now - cached.failTs < REFRESH_COOLDOWN)
+        return old();
     let fresh = null;
     try {
         fresh = await fetcher();
     }
     catch { /* collector failure → stale */ }
-    if (fresh == null)
-        return cached?.payload ?? null;
-    writeCache(name, { payload: fresh, ts: Date.now() });
-    return fresh;
+    if (fresh == null) {
+        writeCache(name, { payload: cached?.payload ?? null, ts: cached?.ts ?? 0, okTs, failTs: now });
+        return old();
+    }
+    writeCache(name, { payload: fresh, ts: now, okTs: now });
+    return { payload: fresh, stale: false };
 }

@@ -1,7 +1,7 @@
 // GLM (Zhipu): account balance as the "extra" segment (`¥88.50`). Active when
 // ANTHROPIC_BASE_URL contains "bigmodel.cn" (CN) or "api.z.ai" (global) and
 // ANTHROPIC_AUTH_TOKEN is set. Cache: ~/.cache/cc-hud/glm-balance.json (5 min).
-import { cachedInline } from './cache.js';
+import { cachedInline, type Served } from './cache.js';
 import { fetchJsonNative } from './http.js';
 
 const isGlm = (base = process.env.ANTHROPIC_BASE_URL) =>
@@ -31,7 +31,7 @@ function extractBalance(data: unknown): string | null {
   return null;
 }
 
-export async function getGlmBalance(): Promise<string | null> {
+export async function getGlmBalance(): Promise<Served<string> | null> {
   if (!isGlm()) return null;
   const apiKey = process.env.ANTHROPIC_AUTH_TOKEN;
   if (!apiKey) return null;

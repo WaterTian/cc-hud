@@ -131,19 +131,19 @@ describe('glm balance', () => {
       // Real GLM response: { code: 200, data: { balance: 0.556 } }
       nextResponse = new Response(JSON.stringify({ code: 200, msg: '操作成功', data: { balance: 0.556208 } }));
       const { getGlmBalance } = await importGlm();
-      assert.equal(await getGlmBalance(), '¥0.56');
+      assert.equal((await getGlmBalance())?.payload, '¥0.56');
     });
 
     it('extracts data.total_balance', async () => {
       nextResponse = new Response(JSON.stringify({ code: 200, data: { total_balance: 100.00 } }));
       const { getGlmBalance } = await importGlm();
-      assert.equal(await getGlmBalance(), '¥100.00');
+      assert.equal((await getGlmBalance())?.payload, '¥100.00');
     });
 
     it('extracts top-level balance', async () => {
       nextResponse = new Response(JSON.stringify({ balance: '50.00' }));
       const { getGlmBalance } = await importGlm();
-      assert.equal(await getGlmBalance(), '¥50.00');
+      assert.equal((await getGlmBalance())?.payload, '¥50.00');
     });
 
     it('returns null on JSON-level code error (code != 200)', async () => {
@@ -155,25 +155,25 @@ describe('glm balance', () => {
     it('extracts top-level total_balance', async () => {
       nextResponse = new Response(JSON.stringify({ total_balance: 42.5 }));
       const { getGlmBalance } = await importGlm();
-      assert.equal(await getGlmBalance(), '¥42.50');
+      assert.equal((await getGlmBalance())?.payload, '¥42.50');
     });
 
     it('formats number to 2 decimal places', async () => {
       nextResponse = new Response(JSON.stringify({ code: 200, data: { balance: 88.5 } }));
       const { getGlmBalance } = await importGlm();
-      assert.equal(await getGlmBalance(), '¥88.50');
+      assert.equal((await getGlmBalance())?.payload, '¥88.50');
     });
 
     it('does not double-prefix ¥', async () => {
       nextResponse = new Response(JSON.stringify({ code: 200, data: { balance: '¥3.77' } }));
       const { getGlmBalance } = await importGlm();
-      assert.equal(await getGlmBalance(), '¥3.77');
+      assert.equal((await getGlmBalance())?.payload, '¥3.77');
     });
 
     it('falls back to data.amount', async () => {
       nextResponse = new Response(JSON.stringify({ code: 200, data: { amount: 500 } }));
       const { getGlmBalance } = await importGlm();
-      assert.equal(await getGlmBalance(), '¥500.00');
+      assert.equal((await getGlmBalance())?.payload, '¥500.00');
     });
   });
 

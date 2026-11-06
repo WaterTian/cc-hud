@@ -156,9 +156,10 @@ export function render(data: RenderData): string {
         sameReset(data.topModel.resetsAt, data.sevenDayResetsAt) ? null : data.topModel.resetsAt,
       )
     : null;
+  const q = data.quotaStale ? '~' : '';
   const rates = [
-    rateSegment('5h', data.fiveHourPercent, data.fiveHourResetsAt),
-    rateSegment('7d', data.sevenDayPercent, data.sevenDayResetsAt),
+    rateSegment(`${q}5h`, data.fiveHourPercent, data.fiveHourResetsAt),
+    rateSegment(`${q}7d`, data.sevenDayPercent, data.sevenDayResetsAt),
     rTop,
     spendSegment(data.spendLimit),
     ...data.extraLimits.map(l => rateSegment(l.label, l.percent, l.resetsAt)),

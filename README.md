@@ -239,7 +239,7 @@ Claude Code ──stdin JSON──→  ~/.claude/bin/cc-hud-launcher.cjs   ← s
                               │ resolves the currently installed cc-hud
                               ▼
                              cc-hud dist/index.js  ──stdout──→ status bar
-                              ↘ transcript JSONL (tail 64KB → active subagents + effort fallback)
+                              ↘ transcript JSONL (tail 64KB → effort fallback) + <session>/subagents/*.meta.json (running agents)
                               ↘ git symbolic-ref / status (folder · branch*, 800ms budget)
                               ↘ refresh.js claude (detached → top-model weekly gauge, 5 min cache)
 ```
@@ -248,7 +248,7 @@ Claude Code ──stdin JSON──→  ~/.claude/bin/cc-hud-launcher.cjs   ← s
 <tr>
   <td align="center" width="25%"><b>Stateless</b><br/><sub>Fresh process per tick<br/>zero memory leaks</sub></td>
   <td align="center" width="25%"><b>Fast</b><br/><sub>~30ms render<br/>within 300ms debounce</sub></td>
-  <td align="center" width="25%"><b>Safe</b><br/><sub>2s hard timeout<br/>all IO try-catch</sub></td>
+  <td align="center" width="25%"><b>Safe</b><br/><sub>2s hard timeout, still one line<br/>all IO try-catch</sub></td>
   <td align="center" width="25%"><b>Upgrade-safe</b><br/><sub>Stable launcher (v0.5+)<br/>no re-setup on upgrade</sub></td>
 </tr>
 </table>
@@ -283,7 +283,7 @@ cc-hud shows your current **thinking depth** (the model's reasoning effort — `
 - **`—%`** in the context bar — Claude Code has not reported usage yet (start of session, or right after `/compact` until the next API call); it is not an empty context.
 - **Branch markers** — `*` = uncommitted changes; `?` = `git status` failed or exceeded its 800 ms budget (unknown, never shown as clean).
 - Any other `rate_limits` window Claude Code adds later is listed as-is (`one day:7%`) rather than dropped.
-- **Subagents** (up to three shown) are detected from the last 64 KB of the transcript. A very large tool result can push a still-running `Agent` call out of that window; if you want per-subagent rows regardless, Claude Code's own `subagentStatusLine` setting complements cc-hud.
+- **Subagents** (up to three shown) come from Claude Code's per-agent meta files next to the transcript (`<session>/subagents/agent-*.meta.json`, written at launch and marked `finished` at the end), so they stay visible for the whole run regardless of transcript size; an unfinished meta whose agent transcript has not grown for 15 minutes (a killed session) is ignored. Older builds that ran agents synchronously are still detected from the last 64 KB of the transcript. If you want per-subagent rows, Claude Code's own `subagentStatusLine` setting complements cc-hud.
 
 ### Environment variables
 
@@ -340,7 +340,7 @@ Example output:
 
 Works with `dscode` / `mmcode` / `glmcode` / `ZCode` or any launcher that exports `ANTHROPIC_BASE_URL` + `ANTHROPIC_AUTH_TOKEN`.
 
-**Details.** Detection is by substring of `ANTHROPIC_BASE_URL` (`deepseek`, `bigmodel.cn` / `api.z.ai`, `minimax` — `minimaxi.com` selects the CN endpoint, anything else the global one). Results are cached in `~/.cache/cc-hud/` (`ds-balance.json`, `glm-balance.json`, `mmx-quota.json`; the official gauge uses `claude-plan.json`). On a cache miss these three collectors fetch **inline** with a 1.2 s budget, so a tick can take up to ~1.2 s once every 5 minutes; a hung endpoint only drops its own segment. When several extras apply, `CC_HUD_EXTRA_FILE` wins over DeepSeek, which wins over GLM.
+**Details.** Detection is by substring of `ANTHROPIC_BASE_URL` (`deepseek`, `bigmodel.cn` / `api.z.ai`, `minimax` — `minimaxi.com` selects the CN endpoint, anything else the global one). Results are cached in `~/.cache/cc-hud/` (`ds-balance.json`, `glm-balance.json`, `mmx-quota.json`; the official gauge uses `claude-plan.json`). On a cache miss these three collectors fetch **inline** with a 1.2 s budget, so a tick can take up to ~1.2 s once every 5 minutes; a hung endpoint only drops its own segment, and a failed fetch is retried at most every 30 s (the last good value stays on screen, prefixed with `~` once it is older than 30 minutes, like the official gauge). When several extras apply, `CC_HUD_EXTRA_FILE` wins over DeepSeek, which wins over GLM.
 
 ### Other backends
 

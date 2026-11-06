@@ -18,13 +18,13 @@ Keep the three in sync when behaviour changes.
 | `[Fable 5.1 · XHigh]` | `model.id` (fallback `display_name`), `effort.level` (fallback: transcript) | always; depth only when an effort is known |
 | `█▊░░░░░░░░ 18%` | `context_window.used_percentage`, else derived from `current_usage` tokens ÷ `context_window_size` | always; `—%` until Claude Code reports usage (session start, right after `/compact`) |
 | `(1M)` | `[1m]` suffix in `model.id`, or `context_window_size ≥ 1_000_000` | extended-context sessions |
-| `◐ explore [haiku]` | transcript tail: `Agent` tool_use blocks without a matching `tool_result` | while a subagent runs (max 3 listed) |
+| `◐ explore [haiku]` | `<transcript dir>/<session>/subagents/agent-*.meta.json` without `finished: true` (Claude Code writes one per Agent call at launch, async); fallback: a transcript-tail `Agent` tool_use with no `tool_result` (older synchronous builds) | while a subagent runs (max 3 listed); an unfinished meta idle for > 15 min is ignored |
 | `5h:1% (4.5h)` / `7d:35% (4.1d)` | `rate_limits.five_hour` / `seven_day` (`used_percentage`, `resets_at`); MiniMax quota on that backend | subscription sessions (absent for API-key sessions) |
 | `Fable:51%` | OAuth usage endpoint, via the detached refresher's cache | official backend with rate limits; `~` prefix = cache older than 30 min |
 | `spend:$12/$50 (3d)` | `rate_limits.spend_limit` | when the org sets a spend cap; bare `%` if dollar figures are absent |
 | `one day:7%` | any other `rate_limits.<key>` with `used_percentage` | whenever Claude Code adds a window cc-hud has no slot for |
 | `cc-hud · main*` | `workspace.current_dir` (fallback `cwd`), `worktree.branch` or `git symbolic-ref`, `git status --porcelain` | always; `*` = uncommitted tracked changes, `?` = status failed/timed out, no branch outside a repo |
-| `¥13.44` | `CC_HUD_EXTRA_FILE` first line, else DeepSeek balance, else GLM balance | when one of those applies |
+| `¥13.44` | `CC_HUD_EXTRA_FILE` first line, else DeepSeek balance, else GLM balance | when one of those applies; `~` prefix (also on `5h` / `7d` from MiniMax) = cached value not refreshed for > 30 min |
 
 Colors: Catppuccin Mocha, ANSI 256. Percent colour steps at 50 / 70 / 85.
 
@@ -81,7 +81,8 @@ command output and nonzero exit codes on failure.
   Fields read are typed in [src/types.ts](src/types.ts) (`StdinData`); everything else
   is ignored. Empty, malformed or non-object stdin renders the bare `[Claude]` line.
 - **Output**: exactly one line on stdout, ANSI-256 coloured, then exit 0 — always, including
-  on internal errors (the fallback line). A second line would corrupt the status bar.
+  on internal errors (the fallback line) and at the hard timeout (the stdin-only line: model,
+  context, limits, no collector segments). A second line would corrupt the status bar.
 - **Timing**: ~30 ms typical. Hard exit at 2 s (`setTimeout(...).unref()` in `src/index.ts`);
   git calls 800 ms each; inline third-party fetches 1.2 s. A slow source only drops its own segment.
 - **No persistent state** in the process; one fresh process per tick.
@@ -90,12 +91,12 @@ command output and nonzero exit codes on failure.
 
 | Kind | What | When |
 | --- | --- | --- |
-| reads | `<transcript_path>` — last 64 KB only | every tick |
+| reads | `<transcript_path>` — last 64 KB only; `<transcript_path minus .jsonl>/subagents/*.meta.json` (a few hundred bytes each) plus a `stat` of the matching `.jsonl` for unfinished ones | every tick |
 | reads | `<cfg>/plugins/installed_plugins.json` | every tick (launcher) |
 | reads | `<cfg>/.credentials.json`, or macOS Keychain item `Claude Code-credentials` | refresher only; token used for one GET, never stored or refreshed |
 | reads | `~/.config/cc-hud/config.json` `{ "proxy": "http://…" }` | refresher, when no proxy env var is set |
 | reads | `$CC_HUD_EXTRA_FILE` first line | every tick, when set |
-| writes | `~/.cache/cc-hud/claude-plan.json`, `ds-balance.json`, `glm-balance.json`, `mmx-quota.json` (`{ payload, ts, … }`, atomic tmp + rename) | on refresh / cache miss |
+| writes | `~/.cache/cc-hud/claude-plan.json`, `ds-balance.json`, `glm-balance.json`, `mmx-quota.json` (`{ payload, ts, okTs, failTs?, … }`, atomic tmp + rename) | on refresh / cache miss / failed inline fetch (records `failTs`) |
 | writes | `<cfg>/bin/cc-hud-launcher.cjs`, `statusLine` in `<cfg>/settings.json` | `/cc-hud:setup` only |
 | writes | `$CODEX_HOME/config.toml` — only `tui.status_line` (setup / restore) and `tui.theme` + `tui.status_line_use_colors` (theme / restore-theme), through Codex's config API; `$CODEX_HOME/cc-hud-native.json`, `cc-hud-theme.json`, `themes/cc-hud.tmTheme` | `cc-hud <action> codex` only — never during a statusline tick |
 | spawns | `git symbolic-ref`, `git --no-optional-locks status --porcelain` | every tick with a `current_dir` |
@@ -103,7 +104,7 @@ command output and nonzero exit codes on failure.
 | spawns | `curl --config -` (token via stdin, never argv); `security find-generic-password` on macOS | refresher only |
 | spawns | `codex --version`, then one `codex app-server --stdio` (terminated when the command ends) | `cc-hud <action> codex` only |
 | network | `GET https://api.anthropic.com/api/oauth/usage` (Bearer OAuth) | refresher only — **never inside a tick** |
-| network | `GET api.deepseek.com/user/balance` · `open.bigmodel.cn` / `api.z.ai` `/api/biz/account/query-customer-account-report` · `api.minimaxi.com` / `api.minimax.io` `/v1/token_plan/remains` (Bearer `ANTHROPIC_AUTH_TOKEN`) | third-party backends, inline on a cache miss (≤ once per 5 min) |
+| network | `GET api.deepseek.com/user/balance` · `open.bigmodel.cn` / `api.z.ai` `/api/biz/account/query-customer-account-report` · `api.minimaxi.com` / `api.minimax.io` `/v1/token_plan/remains` (Bearer `ANTHROPIC_AUTH_TOKEN`) | third-party backends, inline on a cache miss (≤ once per 5 min; after a failure ≤ once per 30 s) |
 
 Turn off all network on the official backend with `CC_HUD_NO_REFRESH=1`. Third-party
 collectors have no switch; they only run when `ANTHROPIC_BASE_URL` matches their host.
@@ -134,11 +135,11 @@ Boolean switches: `""`, `0`, `false` mean off; anything else means on (`src/env.
 | `src/types.ts` | `StdinData` (fields read), `RenderData` (what the renderer needs) |
 | `src/render.ts` | Pure renderer: `RenderData` → one coloured line; strips control chars from free text |
 | `src/model.ts` | Model id → display name + `(1M)` variant (`claude-opus-4-7[1m]` → `Opus 4.7`, `1M`) |
-| `src/transcript.ts` | Transcript tail → running subagents + latest main-chain effort |
+| `src/transcript.ts` | Transcript tail → latest main-chain effort; running subagents from the `subagents/*.meta.json` sidecar (plus synchronous `Agent` calls still awaiting a result) |
 | `src/git.ts` | Folder · branch · dirty marker, 800 ms per git call |
 | `src/claude.ts` | Top-model weekly gauge: tick reads cache; `refreshClaudePlan()` does the OAuth GET (refresher) |
 | `src/refresh.ts` | Detached refresher entry: `node refresh.js claude`, 8 s budget |
-| `src/cache.ts` | `~/.cache/cc-hud/<name>.json`; `serveCache` (detached discipline) and `cachedInline` (inline discipline); atomic writes |
+| `src/cache.ts` | `~/.cache/cc-hud/<name>.json`; `serveCache` (detached discipline) and `cachedInline` (inline discipline: 30 s retry cooldown after a failure, `stale` flag after 30 min); atomic writes |
 | `src/http.ts` | `fetchJson` (refresher: proxy → curl only, else fetch then curl on transport failure / 403) and `fetchJsonNative` (collectors, 1.2 s) |
 | `src/balance.ts` / `glm.ts` / `mmx.ts` | DeepSeek / GLM / MiniMax: backend detection + response parsing on top of `cachedInline` |
 | `src/env.ts` | `envFlag()` boolean switch parsing |
@@ -227,9 +228,9 @@ or model requests); it needs a local Codex ≥ 0.166.0.
 
 ## Invariants — keep these when changing code
 
-1. **One stdout write per tick** — go through `emit()` in `src/index.ts`; never `console.log` elsewhere.
+1. **One stdout write per tick** — go through `emit()` in `src/index.ts`; never `console.log` elsewhere. The hard timeout and the catch-all both emit the stdin-only line, never nothing.
 2. **No network inside a tick on the official backend** — `src/claude.ts` reads the cache; fetching belongs in `refreshClaudePlan()`. Inline collectors keep `INLINE_TIMEOUT_MS` (1.2 s) so the 2 s hard exit is never reached.
-3. **Unknown is not zero** — missing usage renders `—%`, a failed `git status` renders `?`, a stale gauge gets `~`. Never collapse a failure into a reassuring value.
+3. **Unknown is not zero** — missing usage renders `—%`, a failed `git status` renders `?`, a stale gauge / balance / quota gets `~`, a finished agent is gone and a dead one times out. Never collapse a failure into a reassuring value.
 4. **Every IO in try/catch**, degrading to a shorter line. The process must exit 0 with one line even when everything fails.
 5. **Free text is untrusted** — anything from stdin, the transcript, git or an API passes through `clean()` in `src/render.ts`.
 6. **Zero dependencies, Node ≥ 18 at runtime** — Node built-ins only; no Node 22-only APIs in `src/`.
