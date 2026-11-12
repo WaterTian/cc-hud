@@ -10,7 +10,7 @@ Keep the three in sync when behaviour changes.
 ## What it renders
 
 ```
-[Fable 5.1 · XHigh] █▊░░░░░░░░ 18% (1M) │ ◐ explore [haiku] │ 5h:1% (4.5h) │ 7d:35% (4.1d) │ Fable:51% │ spend:$12/$50 (3d) │ cc-hud · main*
+[Fable 5.1 · XHigh] █▊░░░░░░░░ 18% (1M) │ ◐ Explore×2 [Haiku 5.5·Med] │ 5h:1% (4.5h) │ 7d:35% (4.1d) │ Fable:51% │ spend:$12/$50 (3d) │ cc-hud · main*
 ```
 
 | Segment | Source | Shown when |
@@ -18,7 +18,7 @@ Keep the three in sync when behaviour changes.
 | `[Fable 5.1 · XHigh]` | `model.id` (fallback `display_name`), `effort.level` (fallback: transcript) | always; depth only when an effort is known |
 | `█▊░░░░░░░░ 18%` | `context_window.used_percentage`, else derived from `current_usage` tokens ÷ `context_window_size` | always; `—%` until Claude Code reports usage (session start, right after `/compact`) |
 | `(1M)` | `[1m]` suffix in `model.id`, or `context_window_size ≥ 1_000_000` | extended-context sessions |
-| `◐ explore [haiku]` | `<transcript dir>/<session>/subagents/agent-*.meta.json` without `finished: true` (Claude Code writes one per Agent call at launch, async); fallback: a transcript-tail `Agent` tool_use with no `tool_result` (older synchronous builds) | while a subagent runs (max 3 listed); an unfinished meta idle for > 15 min is ignored |
+| `◐ Explore×2 [Haiku 5.5·Med]` | `<transcript dir>/<session>/subagents/agent-*.meta.json` without `finished: true` (Claude Code writes one per Agent call at launch, async); fallback: a transcript-tail `Agent` tool_use with no `tool_result` (older synchronous builds). Model · effort: the agent's own `agent-*.jsonl` — newest `api-request` (`params.model`, `params.output_config.effort`; `querySource` must start with `agent`) or `assistant` line (`requestedModel` / `message.model`, `effort`; `<synthetic>` skipped) in the last 64 KB, else the first in the first 256 KB; else `meta.model` (the Agent-call alias). `meta.pickedEffortModel` is the parent's model — never used | while a subagent runs; same type + model + effort merge into `×N`; ≤ 3 entries within 80 columns, the rest fold into `+N`; an unfinished meta idle for > 15 min is ignored |
 | `5h:1% (4.5h)` / `7d:35% (4.1d)` | `rate_limits.five_hour` / `seven_day` (`used_percentage`, `resets_at`); MiniMax quota on that backend | subscription sessions (absent for API-key sessions) |
 | `Fable:51%` | OAuth usage endpoint, via the detached refresher's cache | official backend with rate limits; `~` prefix = cache older than 30 min |
 | `spend:$12/$50 (3d)` | `rate_limits.spend_limit` | when the org sets a spend cap; bare `%` if dollar figures are absent |
@@ -91,7 +91,7 @@ command output and nonzero exit codes on failure.
 
 | Kind | What | When |
 | --- | --- | --- |
-| reads | `<transcript_path>` — last 64 KB only; `<transcript_path minus .jsonl>/subagents/*.meta.json` (a few hundred bytes each) plus a `stat` of the matching `.jsonl` for unfinished ones | every tick |
+| reads | `<transcript_path>` — last 64 KB only; `<transcript_path minus .jsonl>/subagents/*.meta.json` (a few hundred bytes each) plus, for unfinished ones, a `stat` and the last 64 KB of the matching `.jsonl` (first 256 KB only when the tail holds no model record) | every tick |
 | reads | `<cfg>/plugins/installed_plugins.json` | every tick (launcher) |
 | reads | `<cfg>/.credentials.json`, or macOS Keychain item `Claude Code-credentials` | refresher only; token used for one GET, never stored or refreshed |
 | reads | `~/.config/cc-hud/config.json` `{ "proxy": "http://…" }` | refresher, when no proxy env var is set |
@@ -135,7 +135,7 @@ Boolean switches: `""`, `0`, `false` mean off; anything else means on (`src/env.
 | `src/types.ts` | `StdinData` (fields read), `RenderData` (what the renderer needs) |
 | `src/render.ts` | Pure renderer: `RenderData` → one coloured line; strips control chars from free text |
 | `src/model.ts` | Model id → display name + `(1M)` variant (`claude-opus-4-7[1m]` → `Opus 4.7`, `1M`) |
-| `src/transcript.ts` | Transcript tail → latest main-chain effort; running subagents from the `subagents/*.meta.json` sidecar (plus synchronous `Agent` calls still awaiting a result) |
+| `src/transcript.ts` | Transcript tail → latest main-chain effort; running subagents from the `subagents/*.meta.json` sidecar (plus synchronous `Agent` calls still awaiting a result), each with the model · effort from its own `agent-*.jsonl` |
 | `src/git.ts` | Folder · branch · dirty marker, 800 ms per git call |
 | `src/claude.ts` | Top-model weekly gauge: tick reads cache; `refreshClaudePlan()` does the OAuth GET (refresher) |
 | `src/refresh.ts` | Detached refresher entry: `node refresh.js claude`, 8 s budget |

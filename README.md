@@ -79,7 +79,7 @@
 <tr>
   <td align="center" width="14%"><h3>█▌</h3><b>Context Bar</b><br/><sub>1/8-precision blocks<br/>80-level granularity</sub></td>
   <td align="center" width="17%"><h3>★</h3><b>Depth & Top Model</b><br/><sub>Thinking-depth badge<br/>Opus/Fable weekly gauge</sub></td>
-  <td align="center" width="17%"><h3>◐</h3><b>Agents</b><br/><sub>Running subagents<br/>with type & model</sub></td>
+  <td align="center" width="17%"><h3>◐</h3><b>Agents</b><br/><sub>Running subagents<br/>type · model · depth</sub></td>
   <td align="center" width="17%"><h3>%</h3><b>Rate Limits</b><br/><sub>5h / 7d / spend cap<br/>+ reset countdown</sub></td>
   <td align="center" width="17%"><h3>⎇</h3><b>Workspace</b><br/><sub>folder · branch*<br/>+ dirty marker</sub></td>
   <td align="center" width="17%"><h3>◧</h3><b>Color</b><br/><sub><a href="https://github.com/catppuccin/catppuccin">Catppuccin Mocha</a><br/>dual-tone gradient</sub></td>
@@ -239,7 +239,7 @@ Claude Code ──stdin JSON──→  ~/.claude/bin/cc-hud-launcher.cjs   ← s
                               │ resolves the currently installed cc-hud
                               ▼
                              cc-hud dist/index.js  ──stdout──→ status bar
-                              ↘ transcript JSONL (tail 64KB → effort fallback) + <session>/subagents/*.meta.json (running agents)
+                              ↘ transcript JSONL (tail 64KB → effort fallback) + <session>/subagents/*.meta.json (running agents) + agent-*.jsonl (their model · effort)
                               ↘ git symbolic-ref / status (folder · branch*, 800ms budget)
                               ↘ refresh.js claude (detached → top-model weekly gauge, 5 min cache)
 ```
@@ -283,7 +283,7 @@ cc-hud shows your current **thinking depth** (the model's reasoning effort — `
 - **`—%`** in the context bar — Claude Code has not reported usage yet (start of session, or right after `/compact` until the next API call); it is not an empty context.
 - **Branch markers** — `*` = uncommitted changes; `?` = `git status` failed or exceeded its 800 ms budget (unknown, never shown as clean).
 - Any other `rate_limits` window Claude Code adds later is listed as-is (`one day:7%`) rather than dropped.
-- **Subagents** (up to three shown) come from Claude Code's per-agent meta files next to the transcript (`<session>/subagents/agent-*.meta.json`, written at launch and marked `finished` at the end), so they stay visible for the whole run regardless of transcript size; an unfinished meta whose agent transcript has not grown for 15 minutes (a killed session) is ignored. Older builds that ran agents synchronously are still detected from the last 64 KB of the transcript. If you want per-subagent rows, Claude Code's own `subagentStatusLine` setting complements cc-hud.
+- **Subagents** — `◐ Explore×2 [Haiku 5.5·Med]`: type, how many run with the same setup, and the model · effort each one actually runs with (not the parent's). Up to three entries within ~80 columns; the rest fold into `+N`. They come from Claude Code's per-agent meta files next to the transcript (`<session>/subagents/agent-*.meta.json`, written at launch and marked `finished` at the end), so they stay visible for the whole run regardless of transcript size; an unfinished meta whose agent transcript has not grown for 15 minutes (a killed session) is ignored. Model and effort are read from the agent's own transcript (`agent-*.jsonl`: last 64 KB, first 256 KB as fallback); until its first API request only the alias passed to the Agent call (`[Haiku]`) is known, and backends without effort show just the model. Older builds that ran agents synchronously are still detected from the last 64 KB of the transcript. If you want per-subagent rows, Claude Code's own `subagentStatusLine` setting complements cc-hud.
 
 ### Environment variables
 

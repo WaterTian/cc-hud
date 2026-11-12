@@ -25,8 +25,8 @@ commands/setup.md           — 安装配置命令（v0.5.0+ 写 launcher 到 <c
 src/
   index.ts                  — 入口：stdin → 解析 → 渲染 → stdout（全程只写一次 stdout；异常和 2s 超时路径都输出仅含 stdin 数据的行）
   stdin.ts                  — 解析 stdin JSON（非普通对象一律视为 {}）
-  transcript.ts             — 思考深度（effort）来自 transcript 尾部 64KB；活跃 agent 来自 <session>/subagents/agent-*.meta.json（Claude Code 异步启动 agent 时写入，结束时标 finished；15 分钟无心跳视为死亡），旧版同步 agent 仍走 transcript
-  render.ts                 — 单行紧凑渲染（1/8 精度进度条 + ANSI 颜色；自由文本先剥控制字符）
+  transcript.ts             — 思考深度（effort）来自 transcript 尾部 64KB；活跃 agent 来自 <session>/subagents/agent-*.meta.json（Claude Code 异步启动 agent 时写入，结束时标 finished；15 分钟无心跳视为死亡），旧版同步 agent 仍走 transcript；每个 agent 的实际模型 / 深度读它自己的 agent-*.jsonl（api-request 的 params.model / output_config.effort 或 assistant 行；尾部 64KB 优先，读不到再读头部 256KB；meta.pickedEffortModel 是父会话模型，不能用）
+  render.ts                 — 单行紧凑渲染（1/8 精度进度条 + ANSI 颜色；自由文本先剥控制字符；agent 段 `◐ Explore×2 [Haiku 5.5·Med]`：同类型 + 模型 + 深度合并 ×N，≤ 3 条且 ≤ 80 列，其余折叠成 +N）
   model.ts                  — 模型名美化（claude-opus-4-7[1m] → Opus 4.7 (1M)）
   git.ts                    — 工作区段：目录名 + 分支 + 脏标记（800ms 预算，--no-optional-locks；status 失败 = 未知，不当 clean）
   claude.ts                 — 顶级模型周用量（OAuth usage API）：tick 只读缓存，网络全在 refresh.ts
@@ -59,7 +59,7 @@ preview.html / cc-hud-preview.{svg,png} — README 顶部预览图源文件与�
 
 ```
 Claude Code → stdin JSON → cc-hud → stdout → 状态栏
-           ↘ transcript JSONL（尾部 64KB → 思考深度 effort）+ <session>/subagents/*.meta.json（活跃 agent）
+           ↘ transcript JSONL（尾部 64KB → 思考深度 effort）+ <session>/subagents/*.meta.json（活跃 agent）+ agent-*.jsonl（各 agent 的模型 · 深度）
            ↘ git symbolic-ref / status（目录 · 分支*，800ms 预算）
            ↘ ~/.cache/cc-hud/claude-plan.json（只读；过期则 spawn detached refresh.js 后台拉取写回）
 
@@ -69,7 +69,7 @@ Codex（仅显式命令，与 tick 无关）：cc-hud <action> codex → 临时 
 ## 性能与稳定性
 
 - **无状态** — 每次调用都是独立进程，无内存泄漏风险
-- **尾部读取** — 只读 transcript 最后 64KB，不全量解析
+- **尾部读取** — 只读 transcript 最后 64KB，不全量解析；运行中的子 agent 各读自己 agent-*.jsonl 的尾部 64KB（无模型记录时再读头部 256KB，实测单个 < 1ms）
 - **字符串预过滤** — 只对含 `"Agent"` / `"tool_result"` / `"effort"` 的行做 JSON.parse（assistant 行基本都带 effort，省掉的主要是 user / progress 等行）
 - **2s 硬超时** — setTimeout + unref()，超时先输出仅含 stdin 数据的行再退出，不阻塞 Claude Code 也不留空白；第三方采集器的 inline fetch 预算 1.2s，超时只丢该段不丢整行，失败后 30s 冷却不每 tick 重试
 - **只写一次 stdout** — 多写一行会污染状态栏；emit 用 writeSync 同步写（macOS / Windows 的管道是异步的，超时路径紧接着 exit），异常路径输出 stdin 能算出的部分，最差 `[Claude]`

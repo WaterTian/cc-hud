@@ -171,7 +171,7 @@ describe('dist/index.js end-to-end', () => {
       context_window: { used_percentage: 10, current_usage: { input_tokens: 1 } },
       transcript_path: transcript,
     }), home);
-    assert.equal(r.out, '[Fable 5.1] █░░░░░░░░░ 10% │ ◐ Explore [haiku]');
+    assert.equal(r.out, '[Fable 5.1] █░░░░░░░░░ 10% │ ◐ Explore [Haiku]');
   });
 
   it('serves a cached top-model gauge and flags it stale without okTs', async () => {
@@ -211,13 +211,17 @@ describe('dist/index.js end-to-end', () => {
     const sub = join(home, 'async', 'subagents');
     mkdirSync(sub, { recursive: true });
     writeFileSync(join(sub, 'agent-abc.meta.json'), JSON.stringify({ agentType: 'explore', model: 'haiku', toolUseId: 'toolu_9' }));
-    writeFileSync(join(sub, 'agent-abc.jsonl'), '{}\n');
+    // The agent's own transcript carries the resolved model + effort
+    writeFileSync(join(sub, 'agent-abc.jsonl'), JSON.stringify({
+      type: 'api-request', querySource: 'agent:builtin:Explore',
+      params: { model: 'claude-haiku-5-5', output_config: { effort: 'medium' } },
+    }) + '\n');
     const r = await run(JSON.stringify({
       model: { id: 'claude-fable-5-1' },
       context_window: { used_percentage: 10, current_usage: { input_tokens: 1 } },
       transcript_path: transcript,
     }), home);
-    assert.equal(r.out, '[Fable 5.1] █░░░░░░░░░ 10% │ ◐ explore [haiku]');
+    assert.equal(r.out, '[Fable 5.1] █░░░░░░░░░ 10% │ ◐ explore [Haiku 5.5·Med]');
   });
 
   it('prints the stdin-only line at the hard timeout when a collector hangs', { skip: process.platform === 'win32' }, async () => {

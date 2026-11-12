@@ -10,14 +10,32 @@
 //     authoritative source and is independent of the 64 KB window.
 //   • transcript — an Agent tool_use without any tool_result (older builds
 //     that ran agents synchronously).
+//
+// A running sidecar agent also gets the model and effort it actually runs
+// with, read from its own transcript (agent-<id>.jsonl) — see agentRuntime.
 import { open, readdir, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 const EMPTY = { agents: [], effort: null };
 const TAIL_BYTES = 64 * 1024; // 64 KB — agent entries & the latest effort are near the end
+// Head fallback for agentRuntime: the first API request sits after the prompt
+// and attachments (20–180 KB in practice).
+const RUNTIME_HEAD_BYTES = 256 * 1024;
 // An unfinished meta whose agent transcript has not grown for this long is a
 // leftover from a killed session, not a running agent.
 export const AGENT_HEARTBEAT_MS = 15 * 60 * 1000;
 const str = (v) => (typeof v === 'string' && v ? v : undefined);
+async function readAt(fd, from, len) {
+    const buf = Buffer.alloc(len);
+    let got = 0;
+    // A single read may come back short — keep going until the window is full
+    while (got < len) {
+        const { bytesRead } = await fd.read(buf, got, len - got, from + got);
+        if (bytesRead === 0)
+            break;
+        got += bytesRead;
+    }
+    return buf.subarray(0, got);
+}
 async function readTail(filePath) {
     const info = await stat(filePath);
     if (!info.isFile() || info.size === 0)
@@ -28,17 +46,7 @@ async function readTail(filePath) {
         // Read one byte before the window (when there is one): if it is '\n' the
         // window begins on a line boundary and its first line is complete.
         const from = start > 0 ? start - 1 : 0;
-        const len = info.size - from;
-        const buf = Buffer.alloc(len);
-        let got = 0;
-        // A single read may come back short — keep going until the window is full
-        while (got < len) {
-            const { bytesRead } = await fd.read(buf, got, len - got, from + got);
-            if (bytesRead === 0)
-                break;
-            got += bytesRead;
-        }
-        const data = buf.subarray(0, got);
+        const data = await readAt(fd, from, info.size - from);
         if (start === 0)
             return data.toString('utf8');
         const text = data.subarray(1).toString('utf8');
@@ -51,6 +59,73 @@ async function readTail(filePath) {
     finally {
         await fd.close();
     }
+}
+// First `bytes` of the file, cut back to the last complete line.
+async function readHead(filePath, bytes) {
+    const fd = await open(filePath, 'r');
+    try {
+        const data = await readAt(fd, 0, bytes);
+        if (data.length < bytes)
+            return data.toString('utf8');
+        const nl = data.lastIndexOf(0x0a);
+        return nl >= 0 ? data.subarray(0, nl).toString('utf8') : '';
+    }
+    finally {
+        await fd.close();
+    }
+}
+// One subagent transcript line → the model / effort it records, if any.
+//   api-request — params.model + params.output_config.effort, written before
+//                 each call (so known while the first response is pending)
+//   assistant   — requestedModel (or message.model) + effort, every turn
+function runtimeOf(line) {
+    const isRequest = line.includes('"type":"api-request"'); // not -shape / -blob
+    if (!isRequest && !line.includes('"type":"assistant"'))
+        return null;
+    try {
+        const o = JSON.parse(line);
+        let model;
+        let effort;
+        if (o.type === 'api-request') {
+            // Only the agent's own loop; a side query could use another model
+            if (typeof o.querySource === 'string' && !o.querySource.startsWith('agent'))
+                return null;
+            model = str(o.params?.model);
+            effort = str(o.params?.output_config?.effort);
+        }
+        else if (o.type === 'assistant') {
+            model = str(o.requestedModel) ?? str(o.message?.model);
+            // Locally generated turns (API errors, interrupts) carry no real model
+            if (model === '<synthetic>')
+                return null;
+            effort = str(o.effort);
+        }
+        return model || effort ? { model, effort } : null;
+    }
+    catch {
+        return null;
+    }
+}
+// Model and effort a subagent runs with. They are fixed for its lifetime, so
+// the newest record in the last 64 KB is enough; when one huge tool result
+// fills the whole window, fall back to the first record in the head. Nothing
+// found (first request not sent yet) or unreadable → {}.
+export async function agentRuntime(logPath) {
+    try {
+        const tail = (await readTail(logPath)).split('\n');
+        for (let i = tail.length - 1; i >= 0; i--) {
+            const r = runtimeOf(tail[i]);
+            if (r)
+                return r;
+        }
+        for (const line of (await readHead(logPath, RUNTIME_HEAD_BYTES)).split('\n')) {
+            const r = runtimeOf(line);
+            if (r)
+                return r;
+        }
+    }
+    catch { /* unreadable → unknown */ }
+    return {};
 }
 // Sidecar scan: every agent-*.meta.json without `finished: true` whose
 // transcript (or, failing that, the meta file) was touched recently.
@@ -70,13 +145,19 @@ async function sidecarAgents(transcriptPath) {
             const meta = JSON.parse(await readFile(metaPath, 'utf8'));
             if (meta.finished === true)
                 return null;
-            const beat = await stat(metaPath.replace(/\.meta\.json$/, '.jsonl')).catch(() => stat(metaPath));
+            const logPath = metaPath.replace(/\.meta\.json$/, '.jsonl');
+            const beat = await stat(logPath).catch(() => stat(metaPath));
             if (now - beat.mtimeMs > AGENT_HEARTBEAT_MS)
                 return null;
+            // meta.model is only the alias passed to the Agent call ("haiku") and
+            // is absent for defaults; the agent's own transcript has the resolved
+            // id. (meta.pickedEffortModel is the parent's model — not used.)
+            const run = await agentRuntime(logPath);
             return {
                 id: str(meta.toolUseId) ?? name,
                 type: str(meta.agentType) ?? 'general-purpose',
-                model: str(meta.model),
+                model: run.model ?? str(meta.model),
+                effort: run.effort,
                 description: str(meta.description),
                 status: 'running',
             };

@@ -78,19 +78,65 @@ describe('render', () => {
     const out = strip(render(makeData({
       agents: [{ id: '1', type: 'explore', model: 'haiku', status: 'running' }],
     })));
-    assert.match(out, /◐/);
-    assert.match(out, /explore/);
-    assert.match(out, /\[haiku\]/);
+    assert.match(out, /◐ explore \[Haiku\]/); // bare alias, capitalized
   });
 
-  it('limits agents to 3', () => {
+  it('tags an agent with its compact model and effort', () => {
+    const out = strip(render(makeData({
+      agents: [{ id: '1', type: 'Explore', model: 'claude-haiku-5-5', effort: 'medium', status: 'running' }],
+    })));
+    assert.match(out, /│ ◐ Explore \[Haiku 5\.5·Med\] │|◐ Explore \[Haiku 5\.5·Med\]$/);
+  });
+
+  it('shrinks or drops the tag when model / effort are missing', () => {
+    const out = strip(render(makeData({
+      agents: [
+        { id: '1', type: 'a', model: 'deepseek-v4-pro', status: 'running' },
+        { id: '2', type: 'b', effort: 'xhigh', status: 'running' },
+        { id: '3', type: 'c', status: 'running' },
+      ],
+    })));
+    assert.ok(out.includes('◐ a [DeepSeek V4 Pro] ◐ b [XHigh] ◐ c'), out);
+  });
+
+  it('merges agents with the same type, model and effort into one ×N entry', () => {
+    const same = { type: 'Explore', model: 'claude-opus-5-5', effort: 'xhigh', status: 'running' as const };
+    const out = strip(render(makeData({
+      agents: [
+        { id: '1', ...same }, { id: '2', ...same }, { id: '3', ...same },
+        { id: '4', ...same, effort: 'low' },
+      ],
+    })));
+    assert.ok(out.includes('◐ Explore×3 [Opus 5.5·XHigh] ◐ Explore [Opus 5.5·Low]'), out);
+  });
+
+  it('shows at most 3 entries and folds the rest into +N', () => {
     const agents = Array.from({ length: 5 }, (_, i) => ({
       id: String(i), type: `agent${i}`, status: 'running' as const,
     }));
     const out = strip(render(makeData({ agents })));
-    assert.ok(out.includes('agent0'));
-    assert.ok(out.includes('agent2'));
+    assert.ok(out.includes('◐ agent0 ◐ agent1 ◐ agent2 +2'), out);
     assert.ok(!out.includes('agent3'));
+  });
+
+  it('folds entries past the width budget, keeping order stable', () => {
+    const run = (id: string, type: string, model: string, effort: string) => ({ id, type, model, effort, status: 'running' as const });
+    const out = strip(render(makeData({
+      agents: [
+        run('1', 'general-purpose', 'claude-fable-5-1', 'high'),
+        run('2', 'Plan', 'claude-opus-5-5', 'max'),
+        run('3', 'claude-code-guide', 'claude-haiku-5-5', 'medium'), // would overflow 80 columns
+        run('4', 'x', 'haiku', 'low'),                                 // would fit, but stays folded
+      ],
+    })));
+    assert.ok(out.includes('◐ general-purpose [Fable 5.1·High] ◐ Plan [Opus 5.5·Max] +2'), out);
+  });
+
+  it('caps long agent types and model ids, dropping a vendor prefix', () => {
+    const out = strip(render(makeData({
+      agents: [{ id: '1', type: 'frontend-accessibility-reviewer', model: 'moonshotai/kimi-k2-instruct-0905', effort: 'high', status: 'running' }],
+    })));
+    assert.ok(out.includes('◐ frontend-accessib… [kimi-k2-instruct-…·High]'), out);
   });
 
   it('uses separator between segments', () => {
@@ -320,7 +366,7 @@ describe('render', () => {
     const out = strip(raw);
     assert.ok(!/[\x00-\x1f\x7f]/.test(out), 'no control characters survive');
     assert.match(out, /\[Op\[31mus · High\]/);
-    assert.match(out, /◐ explore \[haiku\]/);
+    assert.match(out, /◐ explore \[Haiku\]/);
     assert.match(out, /Fable:46%/);
     assert.match(out, /oneday:7%/);
     assert.match(out, /cc-hud · main/);

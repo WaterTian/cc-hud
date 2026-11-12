@@ -78,7 +78,8 @@ export interface StdinData {
 export interface AgentEntry {
   id: string;
   type: string;
-  model?: string;
+  model?: string;  // resolved id from the agent's transcript, else the Agent-call alias ("haiku")
+  effort?: string; // reasoning effort the agent runs with (sidecar agents only)
   description?: string;
   status: 'running' | 'completed';
 }

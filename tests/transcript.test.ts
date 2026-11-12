@@ -150,24 +150,25 @@ describe('parseTranscript', () => {
     message: { content: [{ type: 'tool_result', tool_use_id, content: 'Async agent launched successfully.' }] },
   });
 
-  const meta = (agentId: string, body: Record<string, unknown>, ageMs = 0) => {
+  // `log` = the agent's own transcript (raw JSONL text)
+  const meta = (agentId: string, body: Record<string, unknown>, ageMs = 0, log = '{}\n') => {
     const d = join(dir, 'session', 'subagents');
     mkdirSync(d, { recursive: true });
     const metaFile = join(d, `agent-${agentId}.meta.json`);
-    const log = join(d, `agent-${agentId}.jsonl`);
+    const logFile = join(d, `agent-${agentId}.jsonl`);
     writeFileSync(metaFile, JSON.stringify(body));
-    writeFileSync(log, '{}\n');
+    writeFileSync(logFile, log);
     if (ageMs) {
       const t = (Date.now() - ageMs) / 1000;
       utimesSync(metaFile, t, t);
-      utimesSync(log, t, t);
+      utimesSync(logFile, t, t);
     }
   };
 
   it('keeps an async-launched agent visible while its meta is unfinished', async () => {
     meta('x1', { agentType: 'explore', model: 'haiku', description: 'probe', toolUseId: 'a1' });
     const { agents } = await parseTranscript(write([agentUse('a1', 'explore', 'haiku'), asyncReceipt('a1')]));
-    assert.deepEqual(agents, [{ id: 'a1', type: 'explore', model: 'haiku', description: 'probe', status: 'running' }]);
+    assert.deepEqual(agents, [{ id: 'a1', type: 'explore', model: 'haiku', effort: undefined, description: 'probe', status: 'running' }]);
   });
 
   it('drops it once the meta says finished', async () => {
@@ -205,5 +206,75 @@ describe('parseTranscript', () => {
     meta('x1', { agentType: 'explore', toolUseId: 'a1' });
     const { agents } = await parseTranscript(file); // never written
     assert.equal(agents.length, 1);
+  });
+
+  // ─── Sidecar agent model / effort (from agent-<id>.jsonl) ─────
+  // Shapes as Claude Code 2.1.3xx writes them.
+
+  const jsonl = (lines: unknown[]) => lines.map(l => JSON.stringify(l)).join('\n') + '\n';
+  const apiRequest = (model: string, effort?: string, querySource = 'agent:builtin:Explore') => ({
+    type: 'api-request', querySource,
+    params: { model, max_tokens: 64000, ...(effort ? { output_config: { effort } } : {}) },
+  });
+  const agentTurn = (model: string, effort?: string, extra: Record<string, unknown> = {}) => ({
+    type: 'assistant', isSidechain: true, requestedModel: model, ...(effort ? { effort } : {}),
+    message: { model, content: [{ type: 'text', text: 'ok' }] }, ...extra,
+  });
+  const agentOf = async (log: string, body: Record<string, unknown> = {}) => {
+    meta('r1', { agentType: 'Explore', toolUseId: 'a1', ...body }, 0, log);
+    const { agents } = await parseTranscript(write([assistant('high')]));
+    assert.equal(agents.length, 1);
+    return agents[0];
+  };
+
+  it('reads model and effort from the first API request before any response', async () => {
+    const a = await agentOf(jsonl([{ type: 'user', isSidechain: true }, apiRequest('claude-opus-5-5', 'xhigh')]));
+    assert.equal(a.model, 'claude-opus-5-5');
+    assert.equal(a.effort, 'xhigh');
+  });
+
+  it('prefers the resolved id over the meta alias, and the newest record wins', async () => {
+    const a = await agentOf(jsonl([
+      apiRequest('claude-haiku-5-5', 'low'),
+      agentTurn('claude-haiku-5-5', 'medium'),
+      { type: 'user', isSidechain: true, message: { content: [{ type: 'tool_result', tool_use_id: 't' }] } },
+    ]), { model: 'haiku' });
+    assert.equal(a.model, 'claude-haiku-5-5');
+    assert.equal(a.effort, 'medium');
+  });
+
+  it('skips synthetic turns and side queries', async () => {
+    const a = await agentOf(jsonl([
+      agentTurn('claude-fable-5-1', 'high'),
+      apiRequest('claude-haiku-5-5', 'low', 'compact'),
+      agentTurn('<synthetic>'),
+    ]));
+    assert.equal(a.model, 'claude-fable-5-1');
+    assert.equal(a.effort, 'high');
+  });
+
+  it('ignores api-request-shape / -blob lines', async () => {
+    const a = await agentOf(jsonl([{ type: 'api-request-blob', message: { model: 'claude-x-9', effort: 'max' } }]), { model: 'opus' });
+    assert.equal(a.model, 'opus');
+    assert.equal(a.effort, undefined);
+  });
+
+  it('falls back to the head when one tool result fills the whole 64 KB tail', async () => {
+    const big = { type: 'user', isSidechain: true, message: { content: [{ type: 'tool_result', tool_use_id: 't', content: 'z'.repeat(100 * 1024) }] } };
+    const a = await agentOf(jsonl([apiRequest('claude-opus-5-5', 'max'), agentTurn('claude-opus-5-5', 'max'), big]));
+    assert.equal(a.model, 'claude-opus-5-5');
+    assert.equal(a.effort, 'max');
+  });
+
+  it('keeps the model without effort for backends that send none', async () => {
+    const a = await agentOf(jsonl([agentTurn('deepseek-v4-pro')]));
+    assert.equal(a.model, 'deepseek-v4-pro');
+    assert.equal(a.effort, undefined);
+  });
+
+  it('falls back to the meta alias when the agent transcript has no record yet', async () => {
+    const a = await agentOf('{"type":"user"', { model: 'haiku' }); // truncated / garbage line
+    assert.equal(a.model, 'haiku');
+    assert.equal(a.effort, undefined);
   });
 });

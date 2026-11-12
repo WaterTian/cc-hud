@@ -2,6 +2,7 @@
 // clock use is the reset countdowns. Segment order:
 //   [model · depth] context-bar │ agents │ 5h │ 7d │ top-model │ spend │ … │ folder · branch │ extra
 // Missing data drops its segment — the bar never shows a fake 0.
+import { shortModelName } from './model.js';
 import type { RenderData } from './types.js';
 
 // — Catppuccin Mocha palette (ANSI 256) —
@@ -21,6 +22,7 @@ const MAROON    = fg(217); // #eba0ac — countdown: urgent
 const OVERLAY = fg(243); // #6c7086 — dim/separator
 const SURFACE = fg(238); // #313244 — bar track
 const TEXT   = fg(189);  // #cdd6f4 — primary text
+const SUBTEXT = fg(146); // #a6adc8 — secondary text (agent model · effort)
 
 // — Bar config —
 const BAR_WIDTH = 10;
@@ -43,9 +45,17 @@ function color(percent: number): string {
 const EFFORT_LABELS: Record<string, string> = {
   low: 'Low', medium: 'Medium', high: 'High', xhigh: 'XHigh', max: 'Max',
 };
-function effortLabel(raw: string): string {
+// Agent tags use the compact form
+const EFFORT_SHORT: Record<string, string> = { ...EFFORT_LABELS, medium: 'Med' };
+function effortLabel(raw: string, labels = EFFORT_LABELS): string {
   const level = clean(raw);
-  return EFFORT_LABELS[level] ?? level.charAt(0).toUpperCase() + level.slice(1);
+  return labels[level] ?? level.charAt(0).toUpperCase() + level.slice(1);
+}
+
+// Cut to `max` characters (code points, not UTF-16 units) with an ellipsis
+function cap(s: string, max: number): string {
+  const chars = Array.from(s);
+  return chars.length > max ? chars.slice(0, max - 1).join('') + '…' : s;
 }
 
 function progressBar(percent: number | null): string {
@@ -119,12 +129,59 @@ function spendSegment(s: RenderData['spendLimit']): string | null {
   return `${OVERLAY}spend:${RESET}${c}${body}${RESET}${countdownSuffix(s.resetsAt)}`;
 }
 
+// Agent model: "claude-haiku-5-5" → "Haiku 5.5"; the bare Agent-call alias
+// ("haiku", known before the agent's first request) is just capitalized; a
+// gateway vendor prefix ("moonshotai/…") is dropped.
+function agentModelLabel(raw: string): string {
+  const m = clean(raw).replace(/^.*\//, '');
+  if (/^(opus|sonnet|haiku|fable)$/i.test(m)) return m.charAt(0).toUpperCase() + m.slice(1).toLowerCase();
+  return m ? shortModelName(m, m).name : '';
+}
+
+const AGENT_GROUPS = 3;     // most entries shown …
+const AGENT_WIDTH = 80;     // … within this many columns; the rest fold into +N
+const AGENT_TEXT_MAX = 18;  // longest type / model label before an ellipsis
+
+// Running subagents: `◐ Explore×2 [Haiku 5.5·Med] ◐ Plan [Opus 5.5·XHigh] +1`.
+// Agents with the same type, model and effort share one entry (×N); missing
+// model / effort just shrink the tag, and no data drops it. The first entry
+// always shows; later ones only while the segment stays within AGENT_WIDTH.
 function agentSegment(agents: RenderData['agents']): string | null {
   if (agents.length === 0) return null;
-  const parts = agents.slice(0, 3).map(a => {
-    const model = a.model ? ` ${OVERLAY}[${clean(a.model)}]${RESET}` : '';
-    return `${TEAL}◐${RESET} ${TEXT}${clean(a.type)}${RESET}${model}`;
-  });
+
+  const groups = new Map<string, { type: string; tag: string[]; count: number }>();
+  for (const a of agents) {
+    const type = cap(clean(a.type) || 'agent', AGENT_TEXT_MAX);
+    const tag = [
+      a.model ? cap(agentModelLabel(a.model), AGENT_TEXT_MAX) : '',
+      a.effort ? effortLabel(a.effort, EFFORT_SHORT) : '',
+    ].filter(Boolean);
+    const key = [type, ...tag].join('\0'); // clean() already removed any \0
+    const g = groups.get(key);
+    if (g) g.count++;
+    else groups.set(key, { type, tag, count: 1 });
+  }
+
+  const parts: string[] = [];
+  let width = 0;
+  let hidden = 0; // once one entry is folded, every later one is too (order stays stable)
+  for (const g of groups.values()) {
+    const count = g.count > 1 ? `×${g.count}` : '';
+    const tag = g.tag.length > 0 ? ` [${g.tag.join('·')}]` : '';
+    const cols = Array.from(`◐ ${g.type}${count}${tag}`).length + (parts.length > 0 ? 1 : 0);
+    if (hidden > 0 || (parts.length > 0 && (parts.length >= AGENT_GROUPS || width + cols > AGENT_WIDTH))) {
+      hidden += g.count;
+      continue;
+    }
+    width += cols;
+    const inner = g.tag.map(t => `${SUBTEXT}${t}${RESET}`).join(`${OVERLAY}·${RESET}`);
+    parts.push(
+      `${TEAL}◐${RESET} ${TEXT}${g.type}${RESET}` +
+      (count ? `${TEAL}${count}${RESET}` : '') +
+      (inner ? ` ${OVERLAY}[${RESET}${inner}${OVERLAY}]${RESET}` : ''),
+    );
+  }
+  if (hidden > 0) parts.push(`${OVERLAY}+${hidden}${RESET}`);
   return parts.join(' ');
 }
 
